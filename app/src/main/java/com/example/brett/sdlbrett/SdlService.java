@@ -10,10 +10,17 @@ import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
+import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
 
 
-public abstract class SdlService extends Service implements IProxyListenerALM {
+
+public class SdlService extends Service implements IProxyListenerALM {
+
+    private static final String APP_NAME = "SDLTESTAPP";
+    private static final String APP_ID = "12345";
+    private static final String CORE_IP = "172.16.27.128";
+    private static final int CORE_PORT = 12345;
 
     public SdlService() {
     }
@@ -35,7 +42,8 @@ public abstract class SdlService extends Service implements IProxyListenerALM {
                 //Create a new proxy using Bluetooth transport
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
-                proxy = new SdlProxyALM(this.getBaseContext(),this, "Hello SDL App", true, "8675309");
+                //proxy = new SdlProxyALM(this.getBaseContext(),this, "Hello SDL App", true, "8675309");
+                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
             } catch (SdlException e) {
                 //There was an error creating the proxy
                 if (proxy == null) {
