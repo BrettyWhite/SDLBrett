@@ -26,6 +26,9 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+
+        //If we are connected to a module we want to start our SdlService
+        SdlReceiver.queryForConnectedService(this);
     }
 
     @Override

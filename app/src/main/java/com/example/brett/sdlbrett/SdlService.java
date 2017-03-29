@@ -8,8 +8,10 @@ import android.util.Log;
 import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
+import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.transport.TransportConstants;
+
 
 public abstract class SdlService extends Service implements IProxyListenerALM {
 
@@ -73,6 +75,24 @@ public abstract class SdlService extends Service implements IProxyListenerALM {
         //learn reason
         Log.e("PROXY CLOSED REASON", reason.toString());
 
+    }
+
+    @Override
+    public void onOnHMIStatus(OnHMIStatus notification) {
+
+        switch(notification.getHmiLevel()) {
+            case HMI_FULL:
+                //send welcome message, addcommands, subscribe to buttons ect
+                break;
+            case HMI_LIMITED:
+                break;
+            case HMI_BACKGROUND:
+                break;
+            case HMI_NONE:
+                break;
+            default:
+                return;
+        }
     }
 
 }
