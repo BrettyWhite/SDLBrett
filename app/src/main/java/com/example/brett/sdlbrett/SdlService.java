@@ -103,10 +103,11 @@ import java.util.List;
  *
  * 1. SDL Proxy Object is created in OnStartCommand
  * 2. Once onOnHMIStatus returns HMI_FULL, we set the layout in sendDisplayLayout.
- *    In HMI_NONE, we can check to see if graphics supported, if so we can set the app icon here after
- *    checking to see if the resource already exists
+ *    In HMI_NONE, we can check to see if graphics supported, if so we can set the app icon here
  * 3. We will receive back a "SUCCESS" response from CORE in the onSetDisplayLayoutResponse method
- * 4. Once successful response is had, call createTextFields to send RPC to set text fields
+ * 4. Once successful response is had, call createTextFields to send RPC to set text fields. We will
+ *    then set the buttons, which need to be called individually. Then finally we set our image after checking
+ *    if its allowed, upload it to core, and then set it.
  *
  **/
 
@@ -128,8 +129,6 @@ public class SdlService extends Service implements IProxyListenerALM {
     // Interface style. Generic HMI currently supports
     // MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
     private static final String INTERFACE = "MEDIA";
-    private static boolean uploaded = false;
-
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -217,13 +216,8 @@ public class SdlService extends Service implements IProxyListenerALM {
                 boolean supported = graphicsSupported();
                 // if supported, we can upload our image
                 if (supported) {
-                    // check if icon is previously uploaded to avoid using resources
-                    isFileUploaded(APP_ICON);
-                    Log.i(TAG,"SdlService "+"APP_ICON UPLOADED: "+uploaded);
-                    if (!uploaded) {
-                        //we must send image to core before using it.
-                        putAndSetAppIcon();
-                    }
+                    //we must send image to core before using it.
+                    putAndSetAppIcon();
                 }
 
                 break;
@@ -260,14 +254,8 @@ public class SdlService extends Service implements IProxyListenerALM {
             // put and set image
             String picName = "cartman.jpg";
 
-            isFileUploaded(picName);
-            if (!uploaded) {
-                putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
-            } else {
-                setImage(picName);
-            }
+            putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
         }
-
     }
 
     public void createTextFields(){
@@ -323,35 +311,6 @@ public class SdlService extends Service implements IProxyListenerALM {
         }
         Log.i(TAG,"SdlService "+"Graphics Supported: "+graphicsSupported);
         return graphicsSupported;
-    }
-
-    public void isFileUploaded(final String fileName){
-
-        uploaded = false;
-
-        ListFiles listFiles = new ListFiles();
-        listFiles.setCorrelationID(CorrelationIdGenerator.generateId());
-        listFiles.setOnRPCResponseListener(new OnRPCResponseListener() {
-            @Override
-            public void onResponse(int correlationId, RPCResponse response) {
-                if(response.getSuccess()){
-                    List<String> filenames = ((ListFilesResponse) response).getFilenames();
-                    if(filenames.contains(fileName)){
-                        Log.i(TAG,"SdlService "+"App icon is already uploaded.");
-                        uploaded = true;
-                    }else{
-                        Log.i(TAG,"SdlService "+"App icon has not been uploaded.");
-                    }
-                }else{
-                    Log.i(TAG,"SdlService "+"Failed to request list of uploaded files.");
-                }
-            }
-        });
-        try{
-            proxy.sendRPCRequest(listFiles);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
     }
 
     public void putAndSetAppIcon(){
