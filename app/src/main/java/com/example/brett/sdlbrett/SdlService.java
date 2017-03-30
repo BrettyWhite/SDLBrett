@@ -256,7 +256,7 @@ public class SdlService extends Service implements IProxyListenerALM {
         putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
 
         //create menu for our app
-        //createMenu();
+        createMenu();
     }
 
     public void createTextFields(){
@@ -316,6 +316,7 @@ public class SdlService extends Service implements IProxyListenerALM {
         AddCommand addCommand = new AddCommand();
         addCommand.setCmdID(0); // Ensure this is unique
         addCommand.setMenuParams(menuParams);  // Set the menu parameters
+        addCommand.setCorrelationID(CorrelationIdGenerator.generateId());
 
         try {
             proxy.sendRPCRequest(addCommand);
