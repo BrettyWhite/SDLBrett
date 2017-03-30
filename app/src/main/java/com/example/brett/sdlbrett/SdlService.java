@@ -9,6 +9,7 @@ import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
+import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.Image;
@@ -17,10 +18,14 @@ import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.Show;
+import com.smartdevicelink.proxy.rpc.SoftButton;
+import com.smartdevicelink.proxy.rpc.SubscribeButton;
 import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
+import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
+import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
 import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
@@ -89,6 +94,7 @@ import com.smartdevicelink.util.CorrelationIdGenerator;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -97,7 +103,8 @@ import java.util.List;
  *
  * 1. SDL Proxy Object is created in OnStartCommand
  * 2. Once onOnHMIStatus returns HMI_FULL, we set the layout in sendDisplayLayout.
- *   In HMI_NONE, we can check to see if graphics supported, if so we can set the app icon here
+ *    In HMI_NONE, we can check to see if graphics supported, if so we can set the app icon here after
+ *    checking to see if the resource already exists
  * 3. We will receive back a "SUCCESS" response from CORE in the onSetDisplayLayoutResponse method
  * 4. Once successful response is had, call createTextFields to send RPC to set text fields
  *
@@ -107,22 +114,22 @@ import java.util.List;
 
 public class SdlService extends Service implements IProxyListenerALM {
 
+    //APP
     private static final String APP_NAME = "SDLTESTAPP";
     private static final String APP_ID = "5346354765";
     private static final String APP_ICON = "sdlicon.jpg";
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
+
+    //CORE
     private static final String CORE_IP = "192.168.1.207";
     private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
 
     // Interface style. Generic HMI currently supports
-    // media, non-media, large graphic only
+    // MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
     private static final String INTERFACE = "MEDIA";
+    private static boolean uploaded = false;
 
-    private static boolean uploaded = true;
-
-    public SdlService() {
-    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -212,7 +219,7 @@ public class SdlService extends Service implements IProxyListenerALM {
                 if (supported) {
                     // check if icon is previously uploaded to avoid using resources
                     isFileUploaded(APP_ICON);
-                    Log.i(TAG,"SdlService "+"UPLOADED: "+uploaded);
+                    Log.i(TAG,"SdlService "+"APP_ICON UPLOADED: "+uploaded);
                     if (!uploaded) {
                         //we must send image to core before using it.
                         putAndSetAppIcon();
@@ -236,13 +243,40 @@ public class SdlService extends Service implements IProxyListenerALM {
         }
     }
 
+    @Override
+    public void onSetDisplayLayoutResponse(SetDisplayLayoutResponse response) {
+        Log.i(TAG, "SetDisplayLayout response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+
+        // Once Layout Is Set, Send Over Text Fields
+        createTextFields();
+
+        // create buttons
+        createButtons();
+
+        // check if images allowed
+        boolean supported = graphicsSupported();
+        // if supported, we can upload our image
+        if (supported) {
+            // put and set image
+            String picName = "cartman.jpg";
+
+            isFileUploaded(picName);
+            if (!uploaded) {
+                putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
+            } else {
+                setImage(picName);
+            }
+        }
+
+    }
+
     public void createTextFields(){
         Show show = new Show();
 
         // Fields will change depending on layout used
-        show.setMainField1("Big Line 1");
-        show.setMainField2("Big Line 2");
-        show.setMainField3("SDL Example App");
+        show.setMainField1("Season 1 Theme Song");
+        show.setMainField2("South Park Album");
+        show.setMainField3("South Park");
         show.setCorrelationID(CorrelationIdGenerator.generateId());
 
         try {
@@ -250,6 +284,32 @@ public class SdlService extends Service implements IProxyListenerALM {
         } catch (SdlException e) {
             e.printStackTrace();
         }
+    }
+
+    public void createButtons(){
+
+        Log.i(TAG,"SdlService "+"CREATE BUTTONS CALLED");
+
+        SubscribeButton subscribeButtonRequestLeft = new SubscribeButton();
+        subscribeButtonRequestLeft.setButtonName(ButtonName.SEEKLEFT);
+        subscribeButtonRequestLeft.setCorrelationID(CorrelationIdGenerator.generateId());
+
+        SubscribeButton subscribeButtonRequestOk = new SubscribeButton();
+        subscribeButtonRequestOk.setButtonName(ButtonName.OK);
+        subscribeButtonRequestOk.setCorrelationID(CorrelationIdGenerator.generateId());
+
+        SubscribeButton subscribeButtonRequestRight = new SubscribeButton();
+        subscribeButtonRequestRight.setButtonName(ButtonName.SEEKRIGHT);
+        subscribeButtonRequestRight.setCorrelationID(CorrelationIdGenerator.generateId());
+
+        try {
+            proxy.sendRPCRequest(subscribeButtonRequestLeft);
+            proxy.sendRPCRequest(subscribeButtonRequestOk);
+            proxy.sendRPCRequest(subscribeButtonRequestRight);
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+
     }
 
     boolean graphicsSupported(){
@@ -265,7 +325,7 @@ public class SdlService extends Service implements IProxyListenerALM {
         return graphicsSupported;
     }
 
-    public void isFileUploaded(final String name){
+    public void isFileUploaded(final String fileName){
 
         uploaded = false;
 
@@ -276,7 +336,7 @@ public class SdlService extends Service implements IProxyListenerALM {
             public void onResponse(int correlationId, RPCResponse response) {
                 if(response.getSuccess()){
                     List<String> filenames = ((ListFilesResponse) response).getFilenames();
-                    if(filenames.contains(name)){
+                    if(filenames.contains(fileName)){
                         Log.i(TAG,"SdlService "+"App icon is already uploaded.");
                         uploaded = true;
                     }else{
@@ -325,10 +385,44 @@ public class SdlService extends Service implements IProxyListenerALM {
         }
     }
 
-    public void setImage(){
+    public void putImage(final String fileName, final FileType fileType, final boolean persistent, final Integer id){
+        PutFile putFileRequest = new PutFile();
+        putFileRequest.setSdlFileName(fileName);
+        putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
+        putFileRequest.setPersistentFile(true);
+        final byte[] data = contentsOfResource(id);
+        putFileRequest.setFileData(data); // can create file_data using helper method below
+        putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
+        putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
+
+            @Override
+            public void onResponse(int correlationId, RPCResponse response) {
+                setListenerType(UPDATE_LISTENER_TYPE_PUT_FILE); // necessary for PutFile requests
+
+                if(response.getSuccess()){
+                    try {
+                        proxy.putfile(fileName, fileType, persistent, data, id);
+                        setImage(fileName);
+                        Log.i(TAG,"SdlService "+"IMAGE PUT SUCCESSFULLY.");
+                    } catch (SdlException e) {
+                        e.printStackTrace();
+                    }
+                }else{
+                    Log.i(TAG,"SdlService "+"Unsuccessful app icon upload.");
+                }
+            }
+        });
+        try {
+            proxy.sendRPCRequest(putFileRequest);
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void setImage(String fileName){
         Image image = new Image();
         image.setImageType(ImageType.DYNAMIC);
-        image.setValue("cartman.jpg"); // a previously uploaded filename using PutFile RPC
+        image.setValue(fileName); // a previously uploaded filename using PutFile RPC
 
         Show show = new Show();
         show.setGraphic(image);
@@ -337,9 +431,9 @@ public class SdlService extends Service implements IProxyListenerALM {
             @Override
             public void onResponse(int correlationId, RPCResponse response) {
                 if (response.getSuccess()) {
-                    Log.i("SdlService", "Successfully showed.");
+                    Log.i(TAG,"SdlService "+"IMAGE SUCCESSFULLY SHOWED.");
                 } else {
-                    Log.i("SdlService", "Show request was rejected.");
+                    Log.i(TAG,"SdlService "+"IMAGE REJECTED");
                 }
             }
         });
@@ -351,25 +445,13 @@ public class SdlService extends Service implements IProxyListenerALM {
     }
 
     @Override
-    public void onSetDisplayLayoutResponse(SetDisplayLayoutResponse response) {
-        Log.i(TAG, "SetDisplayLayout response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-
-        // Once Layout Is Set, Send Over Text Fields
-        createTextFields();
-        // Image
-        //1. check to see if images are supported
-
-    }
-
-
-    @Override
     public void onShowResponse(ShowResponse response) {
         Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
         if (response.getSuccess()) {
             Log.i(TAG,"SdlService "+"Successfully showed.");
         } else {
-            Log.i(TAG,"SdlService "+"Show request was rejected.");
+            Log.i(TAG,"SdlService "+"Show request was rejected. "+response.getInfo());
         }
     }
 
