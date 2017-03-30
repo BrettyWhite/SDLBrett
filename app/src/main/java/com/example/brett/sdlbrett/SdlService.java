@@ -9,11 +9,16 @@ import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
+import com.smartdevicelink.proxy.rpc.AddCommand;
+import com.smartdevicelink.proxy.rpc.AddSubMenu;
+import com.smartdevicelink.proxy.rpc.Choice;
+import com.smartdevicelink.proxy.rpc.CreateInteractionChoiceSet;
 import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.Image;
 import com.smartdevicelink.proxy.rpc.ListFiles;
+import com.smartdevicelink.proxy.rpc.MenuParams;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
@@ -110,7 +115,6 @@ import java.util.List;
  *    if its allowed, upload it to core, and then set it.
  *
  **/
-
 
 
 public class SdlService extends Service implements IProxyListenerALM {
@@ -247,15 +251,12 @@ public class SdlService extends Service implements IProxyListenerALM {
         // create buttons
         createButtons();
 
-        // check if images allowed
-        boolean supported = graphicsSupported();
-        // if supported, we can upload our image
-        if (supported) {
-            // put and set image
-            String picName = "cartman.jpg";
+        // put and set image
+        String picName = "cartman.jpg";
+        putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
 
-            putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
-        }
+        //create menu for our app
+        //createMenu();
     }
 
     public void createTextFields(){
@@ -294,6 +295,30 @@ public class SdlService extends Service implements IProxyListenerALM {
             proxy.sendRPCRequest(subscribeButtonRequestLeft);
             proxy.sendRPCRequest(subscribeButtonRequestOk);
             proxy.sendRPCRequest(subscribeButtonRequestRight);
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public void createMenu(){
+
+        Log.i(TAG,"SdlService "+"CREATE MENU CALLED");
+
+        // Create the menu parameters
+        // The parent id is 0 if adding to the root menu
+        // If adding to a submenu, the parent id is the submenu's id
+        MenuParams menuParams = new MenuParams();
+        menuParams.setParentID(0);
+        menuParams.setPosition(0);
+        menuParams.setMenuName("TESTMENU");
+
+        AddCommand addCommand = new AddCommand();
+        addCommand.setCmdID(0); // Ensure this is unique
+        addCommand.setMenuParams(menuParams);  // Set the menu parameters
+
+        try {
+            proxy.sendRPCRequest(addCommand);
         } catch (SdlException e) {
             e.printStackTrace();
         }
