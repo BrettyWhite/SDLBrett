@@ -9,24 +9,23 @@ import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
+import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
+import com.smartdevicelink.proxy.rpc.Image;
+import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
+import com.smartdevicelink.proxy.rpc.enums.ImageType;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
 import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
-import com.smartdevicelink.exception.SdlException;
-import com.smartdevicelink.proxy.RPCRequest;
-import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.callbacks.OnServiceEnded;
 import com.smartdevicelink.proxy.callbacks.OnServiceNACKed;
-import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
-import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddCommandResponse;
 import com.smartdevicelink.proxy.rpc.AddSubMenuResponse;
 import com.smartdevicelink.proxy.rpc.AlertManeuverResponse;
@@ -43,15 +42,12 @@ import com.smartdevicelink.proxy.rpc.EndAudioPassThruResponse;
 import com.smartdevicelink.proxy.rpc.GenericResponse;
 import com.smartdevicelink.proxy.rpc.GetDTCsResponse;
 import com.smartdevicelink.proxy.rpc.GetVehicleDataResponse;
-import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.ListFilesResponse;
-import com.smartdevicelink.proxy.rpc.MenuParams;
 import com.smartdevicelink.proxy.rpc.OnAudioPassThru;
 import com.smartdevicelink.proxy.rpc.OnButtonEvent;
 import com.smartdevicelink.proxy.rpc.OnButtonPress;
 import com.smartdevicelink.proxy.rpc.OnCommand;
 import com.smartdevicelink.proxy.rpc.OnDriverDistraction;
-import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnHashChange;
 import com.smartdevicelink.proxy.rpc.OnKeyboardInput;
 import com.smartdevicelink.proxy.rpc.OnLanguageChange;
@@ -88,22 +84,24 @@ import com.smartdevicelink.proxy.rpc.UpdateTurnListResponse;
 import com.smartdevicelink.proxy.rpc.enums.FileType;
 import com.smartdevicelink.proxy.rpc.enums.HMILevel;
 import com.smartdevicelink.proxy.rpc.enums.LockScreenStatus;
-import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
-import com.smartdevicelink.proxy.rpc.enums.TextAlignment;
-import com.smartdevicelink.transport.MultiplexTransportConfig;
-import com.smartdevicelink.transport.TransportConstants;
 import com.smartdevicelink.util.CorrelationIdGenerator;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+
 /**
-*
-* This is where the magic happens (in order):
-*
-* 1. SDL Proxy Object is created in OnStartCommand
-* 2. Once onOnHMIStatus returns HMI_FULL, we set the layout in sendDisplayLayout
-* 3. We will receive back a "SUCCESS" response from CORE in the onSetDisplayLayoutResponse method
-* 4. Once successful response is had, call createTextFields to send RPC to set text fields
-*
-**/
+ *
+ * This is where the magic happens (in order):
+ *
+ * 1. SDL Proxy Object is created in OnStartCommand
+ * 2. Once onOnHMIStatus returns HMI_FULL, we set the layout in sendDisplayLayout.
+ *   In HMI_NONE, we can check to see if graphics supported, if so we can set the app icon here
+ * 3. We will receive back a "SUCCESS" response from CORE in the onSetDisplayLayoutResponse method
+ * 4. Once successful response is had, call createTextFields to send RPC to set text fields
+ *
+ **/
 
 
 
@@ -111,6 +109,8 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     private static final String APP_NAME = "SDLTESTAPP";
     private static final String APP_ID = "5346354765";
+    private static final String APP_ICON = "sdlicon.jpg";
+    private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
     private static final String CORE_IP = "192.168.1.207";
     private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
@@ -118,6 +118,8 @@ public class SdlService extends Service implements IProxyListenerALM {
     // Interface style. Generic HMI currently supports
     // media, non-media, large graphic only
     private static final String INTERFACE = "MEDIA";
+
+    private static boolean uploaded = true;
 
     public SdlService() {
     }
@@ -203,6 +205,20 @@ public class SdlService extends Service implements IProxyListenerALM {
             case HMI_BACKGROUND:
                 break;
             case HMI_NONE:
+
+                // in here we can set app icon if graphics supported
+                boolean supported = graphicsSupported();
+                // if supported, we can upload our image
+                if (supported) {
+                    // check if icon is previously uploaded to avoid using resources
+                    isFileUploaded(APP_ICON);
+                    Log.i(TAG,"SdlService "+"UPLOADED: "+uploaded);
+                    if (!uploaded) {
+                        //we must send image to core before using it.
+                        putAndSetAppIcon();
+                    }
+                }
+
                 break;
             default:
                 return;
@@ -222,11 +238,111 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     public void createTextFields(){
         Show show = new Show();
-        show.setMainField1("SDL Example App");
-        show.setMainField2("Information line 1");
-        show.setMainField3("Information line 1");
+
+        // Fields will change depending on layout used
+        show.setMainField1("Big Line 1");
+        show.setMainField2("Big Line 2");
+        show.setMainField3("SDL Example App");
         show.setCorrelationID(CorrelationIdGenerator.generateId());
 
+        try {
+            proxy.sendRPCRequest(show);
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+    }
+
+    boolean graphicsSupported(){
+        Boolean graphicsSupported = false;
+        try {
+            DisplayCapabilities displayCapabilities = proxy.getDisplayCapabilities();
+            graphicsSupported = displayCapabilities.getGraphicSupported();
+            return graphicsSupported;
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+        Log.i(TAG,"SdlService "+"Graphics Supported: "+graphicsSupported);
+        return graphicsSupported;
+    }
+
+    public void isFileUploaded(final String name){
+
+        uploaded = false;
+
+        ListFiles listFiles = new ListFiles();
+        listFiles.setCorrelationID(CorrelationIdGenerator.generateId());
+        listFiles.setOnRPCResponseListener(new OnRPCResponseListener() {
+            @Override
+            public void onResponse(int correlationId, RPCResponse response) {
+                if(response.getSuccess()){
+                    List<String> filenames = ((ListFilesResponse) response).getFilenames();
+                    if(filenames.contains(name)){
+                        Log.i(TAG,"SdlService "+"App icon is already uploaded.");
+                        uploaded = true;
+                    }else{
+                        Log.i(TAG,"SdlService "+"App icon has not been uploaded.");
+                    }
+                }else{
+                    Log.i(TAG,"SdlService "+"Failed to request list of uploaded files.");
+                }
+            }
+        });
+        try{
+            proxy.sendRPCRequest(listFiles);
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void putAndSetAppIcon(){
+        PutFile putFileRequest = new PutFile();
+        putFileRequest.setSdlFileName(APP_ICON);
+        putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
+        putFileRequest.setPersistentFile(true);
+        putFileRequest.setFileData(contentsOfResource(APP_ICON_RESOURCE)); // can create file_data using helper method below
+        putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
+        putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
+
+            @Override
+            public void onResponse(int correlationId, RPCResponse response) {
+                setListenerType(UPDATE_LISTENER_TYPE_PUT_FILE); // necessary for PutFile requests
+
+                if(response.getSuccess()){
+                    try {
+                        proxy.setappicon(APP_ICON, CorrelationIdGenerator.generateId());
+                    } catch (SdlException e) {
+                        e.printStackTrace();
+                    }
+                }else{
+                    Log.i(TAG,"SdlService "+"Unsuccessful app icon upload.");
+                }
+            }
+        });
+        try {
+            proxy.sendRPCRequest(putFileRequest);
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void setImage(){
+        Image image = new Image();
+        image.setImageType(ImageType.DYNAMIC);
+        image.setValue("cartman.jpg"); // a previously uploaded filename using PutFile RPC
+
+        Show show = new Show();
+        show.setGraphic(image);
+        show.setCorrelationID(CorrelationIdGenerator.generateId());
+        show.setOnRPCResponseListener(new OnRPCResponseListener() {
+            @Override
+            public void onResponse(int correlationId, RPCResponse response) {
+                if (response.getSuccess()) {
+                    Log.i("SdlService", "Successfully showed.");
+                } else {
+                    Log.i("SdlService", "Show request was rejected.");
+                }
+            }
+        });
         try {
             proxy.sendRPCRequest(show);
         } catch (SdlException e) {
@@ -240,6 +356,8 @@ public class SdlService extends Service implements IProxyListenerALM {
 
         // Once Layout Is Set, Send Over Text Fields
         createTextFields();
+        // Image
+        //1. check to see if images are supported
 
     }
 
@@ -247,6 +365,12 @@ public class SdlService extends Service implements IProxyListenerALM {
     @Override
     public void onShowResponse(ShowResponse response) {
         Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+
+        if (response.getSuccess()) {
+            Log.i(TAG,"SdlService "+"Successfully showed.");
+        } else {
+            Log.i(TAG,"SdlService "+"Show request was rejected.");
+        }
     }
 
     /**
@@ -601,6 +725,38 @@ public class SdlService extends Service implements IProxyListenerALM {
     @Override
     public void onGenericResponse(GenericResponse response) {
         Log.i(TAG, "Generic response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+    }
+
+
+    /**
+     * Helper method to take resource files and turn them into byte arrays
+     * @param resource Resource file id.
+     * @return Resulting byte array.
+     */
+    private byte[] contentsOfResource(int resource) {
+        InputStream is = null;
+        try {
+            is = getResources().openRawResource(resource);
+            ByteArrayOutputStream os = new ByteArrayOutputStream(is.available());
+            final int bufferSize = 4096;
+            final byte[] buffer = new byte[bufferSize];
+            int available;
+            while ((available = is.read(buffer)) >= 0) {
+                os.write(buffer, 0, available);
+            }
+            return os.toByteArray();
+        } catch (IOException e) {
+            Log.w(TAG, "Can't read icon file", e);
+            return null;
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
 }
