@@ -2,21 +2,28 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
     <ImageView
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:contentDescription="@string/hello_world"
         android:layout_margin="@dimen/activity_horizontal_margin"
-        android:src="@drawable/sdl"/>
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/SDL"
+        android:scaleType="center"
+        android:src="@drawable/sdl" />
 
     <TextView
+        android:id="@+id/textView"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:textSize="16sp"
         android:layout_margin="@dimen/activity_horizontal_margin"
-        android:text="@string/hello_world"/>
+        android:fontFamily="sans-serif-condensed"
+        android:gravity="center"
+        android:text="@string/SDL"
+        android:textColor="@android:color/white"
+        android:textSize="36sp" />
 
 </LinearLayout>

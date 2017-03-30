@@ -17,12 +17,9 @@ public class LockScreenActivity extends AppCompatActivity {
 
         registerReceiver(closeLockScreenBroadcastReceiver, new IntentFilter("CLOSE_LOCK_SCREEN"));
 
-        //set up notitle
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
-        //set up full screen
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
+        //hide nav bar
+        getSupportActionBar().hide();
+        //attach layout
         setContentView(R.layout.activity_lock_screen);
     }
 

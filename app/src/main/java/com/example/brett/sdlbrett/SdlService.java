@@ -6,14 +6,17 @@ import android.os.IBinder;
 import android.util.Log;
 
 import com.smartdevicelink.exception.SdlException;
+import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
+import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
+import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
 import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
 import com.smartdevicelink.exception.SdlException;
@@ -172,6 +175,10 @@ public class SdlService extends Service implements IProxyListenerALM {
         switch(notification.getHmiLevel()) {
             case HMI_FULL:
                 //send welcome message, addcommands, subscribe to buttons ect
+
+                // Set display layout
+                sendDisplayLayout();
+
                 break;
             case HMI_LIMITED:
                 break;
@@ -183,6 +190,28 @@ public class SdlService extends Service implements IProxyListenerALM {
                 return;
         }
     }
+
+    public void sendDisplayLayout(){
+        SetDisplayLayout setDisplayLayoutRequest = new SetDisplayLayout();
+        setDisplayLayoutRequest.setDisplayLayout("MEDIA");
+        setDisplayLayoutRequest.setCorrelationID(CorrelationIdGenerator.generateId());
+        try{
+            proxy.sendRPCRequest(setDisplayLayoutRequest);
+        }catch (SdlException e){
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onSetDisplayLayoutResponse(SetDisplayLayoutResponse response) {
+        Log.i(TAG, "SetDisplayLayout response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+
+    }
+
+    /**
+     * Rest of the SDL callbacks from the head unit
+     */
+
     @Override
     public void onOnPermissionsChange(OnPermissionsChange notification) {
         Log.i(TAG, "Permision changed: " + notification);
@@ -201,10 +230,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 		}
 		*/
     }
-
-    /**
-     * Rest of the SDL callbacks from the head unit
-     */
 
     @Override
     public void onListFilesResponse(ListFilesResponse response){
@@ -419,12 +444,6 @@ public class SdlService extends Service implements IProxyListenerALM {
     @Override
     public void onChangeRegistrationResponse(ChangeRegistrationResponse response) {
         Log.i(TAG, "ChangeRegistration response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-
-    }
-
-    @Override
-    public void onSetDisplayLayoutResponse(SetDisplayLayoutResponse response) {
-        Log.i(TAG, "SetDisplayLayout response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
     }
 
