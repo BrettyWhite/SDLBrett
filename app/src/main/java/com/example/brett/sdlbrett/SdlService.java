@@ -13,6 +13,7 @@ import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
+import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
@@ -93,6 +94,17 @@ import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
 import com.smartdevicelink.util.CorrelationIdGenerator;
 
+/**
+*
+* This is where the magic happens (in order):
+*
+* 1. SDL Proxy Object is created in OnStartCommand
+* 2. Once onOnHMIStatus returns HMI_FULL, we set the layout in sendDisplayLayout
+* 3. We will receive back a "SUCCESS" response from CORE in the onSetDisplayLayoutResponse method
+* 4. Once successful response is had, call createTextFields to send RPC to set text fields
+*
+**/
+
 
 
 public class SdlService extends Service implements IProxyListenerALM {
@@ -102,6 +114,10 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final String CORE_IP = "192.168.1.207";
     private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
+
+    // Interface style. Generic HMI currently supports
+    // media, non-media, large graphic only
+    private static final String INTERFACE = "MEDIA";
 
     public SdlService() {
     }
@@ -124,6 +140,8 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
                 //proxy = new SdlProxyALM(this.getBaseContext(),this, "Hello SDL App", true, "8675309");
+
+                // USE TCP FOR EMULATOR (no BlueTooth)
                 proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
@@ -193,7 +211,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     public void sendDisplayLayout(){
         SetDisplayLayout setDisplayLayoutRequest = new SetDisplayLayout();
-        setDisplayLayoutRequest.setDisplayLayout("MEDIA");
+        setDisplayLayoutRequest.setDisplayLayout(INTERFACE);
         setDisplayLayoutRequest.setCorrelationID(CorrelationIdGenerator.generateId());
         try{
             proxy.sendRPCRequest(setDisplayLayoutRequest);
@@ -202,10 +220,33 @@ public class SdlService extends Service implements IProxyListenerALM {
         }
     }
 
+    public void createTextFields(){
+        Show show = new Show();
+        show.setMainField1("SDL Example App");
+        show.setMainField2("Information line 1");
+        show.setMainField3("Information line 1");
+        show.setCorrelationID(CorrelationIdGenerator.generateId());
+
+        try {
+            proxy.sendRPCRequest(show);
+        } catch (SdlException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void onSetDisplayLayoutResponse(SetDisplayLayoutResponse response) {
         Log.i(TAG, "SetDisplayLayout response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
+        // Once Layout Is Set, Send Over Text Fields
+        createTextFields();
+
+    }
+
+
+    @Override
+    public void onShowResponse(ShowResponse response) {
+        Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
     }
 
     /**
@@ -341,11 +382,6 @@ public class SdlService extends Service implements IProxyListenerALM {
     @Override
     public void onSetMediaClockTimerResponse(SetMediaClockTimerResponse response) {
         Log.i(TAG, "SetMediaClockTimer response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onShowResponse(ShowResponse response) {
-        Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
     }
 
     @Override
