@@ -1,2 +1,2 @@
-include ':app'
-include ':sdl_android_lib'
+include ':app', ':sdl_android'
+project (":sdl_android").projectDir = new File("/Users/livio/Documents/android_workspace/sdl_android/sdl_android")
