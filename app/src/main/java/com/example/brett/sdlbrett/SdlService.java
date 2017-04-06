@@ -32,6 +32,7 @@ import com.smartdevicelink.proxy.rpc.enums.ImageType;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
+import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
 import com.smartdevicelink.proxy.callbacks.OnServiceEnded;
@@ -121,7 +122,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     //APP
     private static final String APP_NAME = "SDLTESTAPP";
-    private static final String APP_ID = "5346354765";
+    private static final String APP_ID = "534634765";
     private static final String APP_ICON = "sdlicon.jpg";
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
@@ -151,10 +152,10 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //Create a new proxy using Bluetooth transport
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
-                //proxy = new SdlProxyALM(this.getBaseContext(),this, "Hello SDL App", true, "8675309");
+                proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 
                 // USE TCP FOR EMULATOR (no BlueTooth)
-                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+                //proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy

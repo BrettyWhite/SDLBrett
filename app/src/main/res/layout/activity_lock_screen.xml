@@ -2,28 +2,14 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/black">
+    android:layout_height="match_parent">
 
     <ImageView
+        android:src="@drawable/sdl_logo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_margin="@dimen/activity_horizontal_margin"
-        android:adjustViewBounds="true"
-        android:contentDescription="@string/SDL"
-        android:scaleType="center"
-        android:src="@drawable/sdl" />
-
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="@dimen/activity_horizontal_margin"
-        android:fontFamily="sans-serif-condensed"
-        android:gravity="center"
-        android:text="@string/SDL"
-        android:textColor="@android:color/white"
-        android:textSize="36sp" />
+        android:id="@+id/imageView"
+        android:layout_weight="1"/>
 
 </LinearLayout>

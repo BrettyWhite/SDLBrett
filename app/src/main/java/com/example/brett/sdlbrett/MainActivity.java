@@ -22,8 +22,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         // Start the SDLService
-        Intent sdlServiceIntent = new Intent(this, SdlService.class);
-        startService(sdlServiceIntent);
+       /* Intent sdlServiceIntent = new Intent(this, SdlService.class);
+        startService(sdlServiceIntent); */
 
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
