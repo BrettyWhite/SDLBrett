@@ -11,18 +11,24 @@ import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
+import com.smartdevicelink.proxy.rpc.ButtonPressResponse;
 import com.smartdevicelink.proxy.rpc.Choice;
 import com.smartdevicelink.proxy.rpc.CreateInteractionChoiceSet;
 import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
+import com.smartdevicelink.proxy.rpc.GetInteriorVehicleDataResponse;
+import com.smartdevicelink.proxy.rpc.GetSystemCapability;
 import com.smartdevicelink.proxy.rpc.GetSystemCapabilityResponse;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.Image;
 import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
+import com.smartdevicelink.proxy.rpc.OnInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
+import com.smartdevicelink.proxy.rpc.RemoteControlCapabilities;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
+import com.smartdevicelink.proxy.rpc.SetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SoftButton;
 import com.smartdevicelink.proxy.rpc.SubscribeButton;
@@ -33,6 +39,7 @@ import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
+import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
@@ -99,11 +106,15 @@ import com.smartdevicelink.proxy.rpc.enums.HMILevel;
 import com.smartdevicelink.proxy.rpc.enums.LockScreenStatus;
 import com.smartdevicelink.util.CorrelationIdGenerator;
 
+import org.json.JSONException;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.smartdevicelink.proxy.rpc.SystemCapability.KEY_REMOTE_CONTROL_CAPABILITY;
 
 /**
  *
@@ -122,717 +133,760 @@ import java.util.List;
 
 public class SdlService extends Service implements IProxyListenerALM {
 
-    //APP
-    private static final String APP_NAME = "SDLTESTAPP";
-    private static final String APP_ID = "534634765";
-    private static final String APP_ICON = "sdlicon.jpg";
-    private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
+	//APP
+	private static final String APP_NAME = "SDLTESTAPP";
+	private static final String APP_ID = "534634765";
+	private static final String APP_ICON = "sdlicon.jpg";
+	private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
-    //CORE
-    private static final String CORE_IP = "192.168.1.207";
-    private static final int CORE_PORT = 12345;
-    private static final String TAG = "SDL Service";
+	//CORE
+	private static final String CORE_IP = "192.168.1.148";
+	private static final int CORE_PORT = 12345;
+	private static final String TAG = "SDL Service";
 
-    // Interface style. Generic HMI currently supports
-    // MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
-    private static final String INTERFACE = "MEDIA";
+	// Interface style. Generic HMI currently supports
+	// MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
+	private static final String INTERFACE = "MEDIA";
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
+	@Override
+	public IBinder onBind(Intent intent) {
+		// TODO: Return the communication channel to the service.
+		throw new UnsupportedOperationException("Not yet implemented");
+	}
 
-    private SdlProxyALM proxy = null;
+	private SdlProxyALM proxy = null;
 
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        boolean forceConnect = intent !=null && intent.getBooleanExtra(TransportConstants.FORCE_TRANSPORT_CONNECTED, false);
-        if (proxy == null) {
-            try {
-                //Create a new proxy using Bluetooth transport
-                //The listener, app name,
-                //whether or not it is a media app and the applicationId are supplied.
-                proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
+	@Override
+	public int onStartCommand(Intent intent, int flags, int startId) {
+		boolean forceConnect = intent !=null && intent.getBooleanExtra(TransportConstants.FORCE_TRANSPORT_CONNECTED, false);
+		if (proxy == null) {
+			try {
+				//Create a new proxy using Bluetooth transport
+				//The listener, app name,
+				//whether or not it is a media app and the applicationId are supplied.
+				//proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 
-                // USE TCP FOR EMULATOR (no BlueTooth)
-                //proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+				// USE TCP FOR EMULATOR (no BlueTooth)
+				proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
-            } catch (SdlException e) {
-                //There was an error creating the proxy
-                if (proxy == null) {
-                    //Stop the SdlService
-                    stopSelf();
-                }
-            }
-        }else if(forceConnect){
-            proxy.forceOnConnected();
-        }
-
-        //use START_STICKY because we want the SDLService to be explicitly started and stopped as needed.
-        return START_STICKY;
-    }
-
-    @Override
-    public void onDestroy() {
-        //Dispose of the proxy
-        if (proxy != null) {
-            try {
-                proxy.dispose();
-            } catch (SdlException e) {
-                e.printStackTrace();
-            } finally {
-                proxy = null;
-            }
-        }
-
-        sendBroadcast(new Intent("CLOSE_LOCK_SCREEN"));
-
-        super.onDestroy();
-    }
-
-    @Override
-    public void onProxyClosed(String info, Exception e, SdlDisconnectedReason reason) {
-        //Stop the service
-        stopSelf();
-
-        //learn reason
-        Log.e("PROXY CLOSED REASON", reason.toString());
-
-    }
-
-    @Override
-    public void onOnHMIStatus(OnHMIStatus notification) {
-
-        switch(notification.getHmiLevel()) {
-            case HMI_FULL:
-                //send welcome message, addcommands, subscribe to buttons ect
-
-                // Set display layout
-                sendDisplayLayout();
-
-                break;
-            case HMI_LIMITED:
-                break;
-            case HMI_BACKGROUND:
-                break;
-            case HMI_NONE:
-
-                // in here we can set app icon if graphics supported
-                boolean supported = graphicsSupported();
-                // if supported, we can upload our image
-                if (supported) {
-                    //we must send image to core before using it.
-                    putAndSetAppIcon();
-                }
-
-                break;
-            default:
-                return;
-        }
-    }
-
-    public void sendDisplayLayout(){
-        SetDisplayLayout setDisplayLayoutRequest = new SetDisplayLayout();
-        setDisplayLayoutRequest.setDisplayLayout(INTERFACE);
-        setDisplayLayoutRequest.setCorrelationID(CorrelationIdGenerator.generateId());
-        try{
-            proxy.sendRPCRequest(setDisplayLayoutRequest);
-        }catch (SdlException e){
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onSetDisplayLayoutResponse(SetDisplayLayoutResponse response) {
-        Log.i(TAG, "SetDisplayLayout response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-
-        // Once Layout Is Set, Send Over Text Fields
-        createTextFields();
-
-        // create buttons
-        createButtons();
-
-        // put and set image
-        String picName = "cartman.jpg";
-        putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
-
-        //create menu for our app
-        createMenu();
-    }
-
-    public void createTextFields(){
-        Show show = new Show();
-
-        // Fields will change depending on layout used
-        show.setMainField1("Season 1 Theme Song");
-        show.setMainField2("South Park Album");
-        show.setMainField3("South Park");
-        show.setCorrelationID(CorrelationIdGenerator.generateId());
-
-        try {
-            proxy.sendRPCRequest(show);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void createButtons(){
-
-        Log.i(TAG,"SdlService "+"CREATE BUTTONS CALLED");
-
-        SubscribeButton subscribeButtonRequestLeft = new SubscribeButton();
-        subscribeButtonRequestLeft.setButtonName(ButtonName.SEEKLEFT);
-        subscribeButtonRequestLeft.setCorrelationID(CorrelationIdGenerator.generateId());
-
-        SubscribeButton subscribeButtonRequestOk = new SubscribeButton();
-        subscribeButtonRequestOk.setButtonName(ButtonName.OK);
-        subscribeButtonRequestOk.setCorrelationID(CorrelationIdGenerator.generateId());
-
-        SubscribeButton subscribeButtonRequestRight = new SubscribeButton();
-        subscribeButtonRequestRight.setButtonName(ButtonName.SEEKRIGHT);
-        subscribeButtonRequestRight.setCorrelationID(CorrelationIdGenerator.generateId());
-
-        try {
-            proxy.sendRPCRequest(subscribeButtonRequestLeft);
-            proxy.sendRPCRequest(subscribeButtonRequestOk);
-            proxy.sendRPCRequest(subscribeButtonRequestRight);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    public void createMenu(){
-
-        Log.i(TAG,"SdlService "+"CREATE MENU CALLED");
-
-        // Create the menu parameters
-        // The parent id is 0 if adding to the root menu
-        // If adding to a submenu, the parent id is the submenu's id
-        MenuParams menuParams = new MenuParams();
-        menuParams.setParentID(0);
-        menuParams.setPosition(0);
-        menuParams.setMenuName("TESTMENU");
-
-        AddCommand addCommand = new AddCommand();
-        addCommand.setCmdID(0); // Ensure this is unique
-        addCommand.setMenuParams(menuParams);  // Set the menu parameters
-        addCommand.setCorrelationID(CorrelationIdGenerator.generateId());
-
-        try {
-            proxy.sendRPCRequest(addCommand);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    boolean graphicsSupported(){
-        Boolean graphicsSupported = false;
-        try {
-            DisplayCapabilities displayCapabilities = proxy.getDisplayCapabilities();
-            graphicsSupported = displayCapabilities.getGraphicSupported();
-            return graphicsSupported;
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-        Log.i(TAG,"SdlService "+"Graphics Supported: "+graphicsSupported);
-        return graphicsSupported;
-    }
-
-    public void putAndSetAppIcon(){
-        PutFile putFileRequest = new PutFile();
-        putFileRequest.setSdlFileName(APP_ICON);
-        putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
-        putFileRequest.setPersistentFile(true);
-        putFileRequest.setFileData(contentsOfResource(APP_ICON_RESOURCE)); // can create file_data using helper method below
-        putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
-        putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
-
-            @Override
-            public void onResponse(int correlationId, RPCResponse response) {
-                setListenerType(UPDATE_LISTENER_TYPE_PUT_FILE); // necessary for PutFile requests
-
-                if(response.getSuccess()){
-                    try {
-                        proxy.setappicon(APP_ICON, CorrelationIdGenerator.generateId());
-                    } catch (SdlException e) {
-                        e.printStackTrace();
-                    }
-                }else{
-                    Log.i(TAG,"SdlService "+"Unsuccessful app icon upload.");
-                }
-            }
-        });
-        try {
-            proxy.sendRPCRequest(putFileRequest);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void putImage(final String fileName, final FileType fileType, final boolean persistent, final Integer id){
-        PutFile putFileRequest = new PutFile();
-        putFileRequest.setSdlFileName(fileName);
-        putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
-        putFileRequest.setPersistentFile(true);
-        final byte[] data = contentsOfResource(id);
-        putFileRequest.setFileData(data); // can create file_data using helper method below
-        putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
-        putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
-
-            @Override
-            public void onResponse(int correlationId, RPCResponse response) {
-                setListenerType(UPDATE_LISTENER_TYPE_PUT_FILE); // necessary for PutFile requests
-
-                if(response.getSuccess()){
-                    try {
-                        proxy.putfile(fileName, fileType, persistent, data, id);
-                        setImage(fileName);
-                        Log.i(TAG,"SdlService "+"IMAGE PUT SUCCESSFULLY.");
-                    } catch (SdlException e) {
-                        e.printStackTrace();
-                    }
-                }else{
-                    Log.i(TAG,"SdlService "+"Unsuccessful app icon upload.");
-                }
-            }
-        });
-        try {
-            proxy.sendRPCRequest(putFileRequest);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void setImage(String fileName){
-        Image image = new Image();
-        image.setImageType(ImageType.DYNAMIC);
-        image.setValue(fileName); // a previously uploaded filename using PutFile RPC
-
-        Show show = new Show();
-        show.setGraphic(image);
-        show.setCorrelationID(CorrelationIdGenerator.generateId());
-        show.setOnRPCResponseListener(new OnRPCResponseListener() {
-            @Override
-            public void onResponse(int correlationId, RPCResponse response) {
-                if (response.getSuccess()) {
-                    Log.i(TAG,"SdlService "+"IMAGE SUCCESSFULLY SHOWED.");
-                } else {
-                    Log.i(TAG,"SdlService "+"IMAGE REJECTED");
-                }
-            }
-        });
-        try {
-            proxy.sendRPCRequest(show);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onShowResponse(ShowResponse response) {
-        Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-
-        if (response.getSuccess()) {
-            Log.i(TAG,"SdlService "+"Successfully showed.");
-        } else {
-            Log.i(TAG,"SdlService "+"Show request was rejected. "+response.getInfo());
-        }
-    }
-
-    /**
-     * Rest of the SDL callbacks from the head unit
-     */
-
-    @Override
-    public void onOnPermissionsChange(OnPermissionsChange notification) {
-        Log.i(TAG, "Permision changed: " + notification);
-		/* Uncomment to subscribe to vehicle data
-		List<PermissionItem> permissions = notification.getPermissionItem();
-		for(PermissionItem permission:permissions){
-			if(permission.getRpcName().equalsIgnoreCase(FunctionID.SUBSCRIBE_VEHICLE_DATA.name())){
-				if(permission.getHMIPermissions().getAllowed()!=null && permission.getHMIPermissions().getAllowed().size()>0){
-					if(!isVehicleDataSubscribed){ //If we haven't already subscribed we will subscribe now
-						//TODO: Add the vehicle data items you want to subscribe to
-						//proxy.subscribevehicledata(gps, speed, rpm, fuelLevel, fuelLevel_State, instantFuelConsumption, externalTemperature, prndl, tirePressure, odometer, beltStatus, bodyInformation, deviceStatus, driverBraking, correlationID);
-						proxy.subscribevehicledata(false, true, rpm, false, false, false, false, false, false, false, false, false, false, false, autoIncCorrId++);
-					}
+			} catch (SdlException e) {
+				//There was an error creating the proxy
+				if (proxy == null) {
+					//Stop the SdlService
+					stopSelf();
 				}
 			}
+		}else if(forceConnect){
+			proxy.forceOnConnected();
 		}
-		*/
-    }
 
-    @Override
-    public void onListFilesResponse(ListFilesResponse response){
-        Log.i(TAG, "onListFilesResponse response from SDL: " + response);
-    }
+		//use START_STICKY because we want the SDLService to be explicitly started and stopped as needed.
+		return START_STICKY;
+	}
 
-    @Override
-    public void onSubscribeWayPointsResponse(SubscribeWayPointsResponse response){
-        Log.i(TAG, "onSubscribeWayPointsResponse response from SDL: " + response);
-    }
+	@Override
+	public void onDestroy() {
+		//Dispose of the proxy
+		if (proxy != null) {
+			try {
+				proxy.dispose();
+			} catch (SdlException e) {
+				e.printStackTrace();
+			} finally {
+				proxy = null;
+			}
+		}
 
-    @Override
-    public void onSubscribeVehicleDataResponse(SubscribeVehicleDataResponse response){
-        Log.i(TAG, "onSubscribeVehicleDataResponse response from SDL: " + response);
-    }
+		sendBroadcast(new Intent("CLOSE_LOCK_SCREEN"));
 
-    @Override
-    public void onPutFileResponse(PutFileResponse response){
-        Log.i(TAG, "onPutFileResponse response from SDL: " + response);
-    }
+		super.onDestroy();
+	}
 
-    @Override
-    public void onOnLockScreenNotification(OnLockScreenStatus notification){
-        Log.i(TAG, "onOnLockScreenNotification notification from SDL: " + notification);
-        if(notification.getHMILevel() == HMILevel.HMI_FULL && notification.getShowLockScreen() == LockScreenStatus.REQUIRED) {
-            Intent showLockScreenIntent = new Intent(this, LockScreenActivity.class);
-            showLockScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(showLockScreenIntent);
-        }else{
-            sendBroadcast(new Intent("CLOSE_LOCK_SCREEN"));
+	@Override
+	public void onProxyClosed(String info, Exception e, SdlDisconnectedReason reason) {
+		//Stop the service
+		stopSelf();
+
+		//learn reason
+		Log.e("PROXY CLOSED REASON", reason.toString());
+
+	}
+
+	@Override
+	public void onOnHMIStatus(OnHMIStatus notification) {
+
+		switch(notification.getHmiLevel()) {
+			case HMI_FULL:
+				//send welcome message, addcommands, subscribe to buttons ect
+
+				// Set display layout
+				sendDisplayLayout();
+
+				break;
+			case HMI_LIMITED:
+				break;
+			case HMI_BACKGROUND:
+				break;
+			case HMI_NONE:
+
+				// in here we can set app icon if graphics supported
+				boolean supported = graphicsSupported();
+				// if supported, we can upload our image
+				if (supported) {
+					//we must send image to core before using it.
+					putAndSetAppIcon();
+				}
+
+				break;
+			default:
+				return;
+		}
+	}
+
+	public void sendDisplayLayout(){
+		SetDisplayLayout setDisplayLayoutRequest = new SetDisplayLayout();
+		setDisplayLayoutRequest.setDisplayLayout(INTERFACE);
+		setDisplayLayoutRequest.setCorrelationID(CorrelationIdGenerator.generateId());
+		try{
+			proxy.sendRPCRequest(setDisplayLayoutRequest);
+		}catch (SdlException e){
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onSetDisplayLayoutResponse(SetDisplayLayoutResponse response) {
+		Log.i(TAG, "SetDisplayLayout response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+
+		// Once Layout Is Set, Send Over Text Fields
+		createTextFields();
+
+		// create buttons
+		createButtons();
+
+		// put and set image
+		String picName = "cartman.jpg";
+		putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
+
+		//create menu for our app
+		createMenu();
+
+		// get remote system capabilities
+		getSystemCapabilities();
+	}
+
+	public void createTextFields(){
+		Show show = new Show();
+
+		// Fields will change depending on layout used
+		show.setMainField1("Season 1 Theme Song");
+		show.setMainField2("South Park Album");
+		show.setMainField3("South Park");
+		show.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		try {
+			proxy.sendRPCRequest(show);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void createButtons(){
+
+		Log.i(TAG,"SdlService "+"CREATE BUTTONS CALLED");
+
+		SubscribeButton subscribeButtonRequestLeft = new SubscribeButton();
+		subscribeButtonRequestLeft.setButtonName(ButtonName.SEEKLEFT);
+		subscribeButtonRequestLeft.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		SubscribeButton subscribeButtonRequestOk = new SubscribeButton();
+		subscribeButtonRequestOk.setButtonName(ButtonName.OK);
+		subscribeButtonRequestOk.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		SubscribeButton subscribeButtonRequestRight = new SubscribeButton();
+		subscribeButtonRequestRight.setButtonName(ButtonName.SEEKRIGHT);
+		subscribeButtonRequestRight.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		try {
+			proxy.sendRPCRequest(subscribeButtonRequestLeft);
+			proxy.sendRPCRequest(subscribeButtonRequestOk);
+			proxy.sendRPCRequest(subscribeButtonRequestRight);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	public void createMenu(){
+
+		Log.i(TAG,"SdlService "+"CREATE MENU CALLED");
+
+		// Create the menu parameters
+		// The parent id is 0 if adding to the root menu
+		// If adding to a submenu, the parent id is the submenu's id
+		MenuParams menuParams = new MenuParams();
+		menuParams.setParentID(0);
+		menuParams.setPosition(0);
+		menuParams.setMenuName("TESTMENU");
+
+		AddCommand addCommand = new AddCommand();
+		addCommand.setCmdID(0); // Ensure this is unique
+		addCommand.setMenuParams(menuParams);  // Set the menu parameters
+		addCommand.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		try {
+			proxy.sendRPCRequest(addCommand);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	boolean graphicsSupported(){
+		Boolean graphicsSupported = false;
+		try {
+			DisplayCapabilities displayCapabilities = proxy.getDisplayCapabilities();
+			graphicsSupported = displayCapabilities.getGraphicSupported();
+			return graphicsSupported;
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+		Log.i(TAG,"SdlService "+"Graphics Supported: "+graphicsSupported);
+		return graphicsSupported;
+	}
+
+	public void putAndSetAppIcon(){
+		PutFile putFileRequest = new PutFile();
+		putFileRequest.setSdlFileName(APP_ICON);
+		putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
+		putFileRequest.setPersistentFile(true);
+		putFileRequest.setFileData(contentsOfResource(APP_ICON_RESOURCE)); // can create file_data using helper method below
+		putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
+		putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
+
+			@Override
+			public void onResponse(int correlationId, RPCResponse response) {
+				setListenerType(UPDATE_LISTENER_TYPE_PUT_FILE); // necessary for PutFile requests
+
+				if(response.getSuccess()){
+					try {
+						proxy.setappicon(APP_ICON, CorrelationIdGenerator.generateId());
+					} catch (SdlException e) {
+						e.printStackTrace();
+					}
+				}else{
+					Log.i(TAG,"SdlService "+"Unsuccessful app icon upload.");
+				}
+			}
+		});
+		try {
+			proxy.sendRPCRequest(putFileRequest);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void putImage(final String fileName, final FileType fileType, final boolean persistent, final Integer id){
+		PutFile putFileRequest = new PutFile();
+		putFileRequest.setSdlFileName(fileName);
+		putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
+		putFileRequest.setPersistentFile(true);
+		final byte[] data = contentsOfResource(id);
+		putFileRequest.setFileData(data); // can create file_data using helper method below
+		putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
+		putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
+
+			@Override
+			public void onResponse(int correlationId, RPCResponse response) {
+				setListenerType(UPDATE_LISTENER_TYPE_PUT_FILE); // necessary for PutFile requests
+
+				if(response.getSuccess()){
+					try {
+						proxy.putfile(fileName, fileType, persistent, data, id);
+						setImage(fileName);
+						Log.i(TAG,"SdlService "+"IMAGE PUT SUCCESSFULLY.");
+					} catch (SdlException e) {
+						e.printStackTrace();
+					}
+				}else{
+					Log.i(TAG,"SdlService "+"Unsuccessful app icon upload.");
+				}
+			}
+		});
+		try {
+			proxy.sendRPCRequest(putFileRequest);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void setImage(String fileName){
+		Image image = new Image();
+		image.setImageType(ImageType.DYNAMIC);
+		image.setValue(fileName); // a previously uploaded filename using PutFile RPC
+
+		Show show = new Show();
+		show.setGraphic(image);
+		show.setCorrelationID(CorrelationIdGenerator.generateId());
+		show.setOnRPCResponseListener(new OnRPCResponseListener() {
+			@Override
+			public void onResponse(int correlationId, RPCResponse response) {
+				if (response.getSuccess()) {
+					Log.i(TAG,"SdlService "+"IMAGE SUCCESSFULLY SHOWED.");
+				} else {
+					Log.i(TAG,"SdlService "+"IMAGE REJECTED");
+				}
+			}
+		});
+		try {
+			proxy.sendRPCRequest(show);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onShowResponse(ShowResponse response) {
+		Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+
+		if (response.getSuccess()) {
+			Log.i(TAG,"SdlService "+"Successfully showed.");
+		} else {
+			Log.i(TAG,"SdlService "+"Show request was rejected. "+response.getInfo());
+		}
+	}
+
+	/**
+	 * Rest of the SDL callbacks from the head unit
+	 */
+
+	public void getSystemCapabilities(){
+
+		GetSystemCapability sc = new GetSystemCapability();
+		sc.setSystemCapabilityType(SystemCapabilityType.REMOTE_CONTROL);
+		sc.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		try {
+			proxy.sendRPCRequest(sc);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	@Override
+	public void onGetSystemCapabilityResponse(GetSystemCapabilityResponse response) {
+		try {
+			Log.i(TAG, "GetSystemCapabilityResponse from SDL: " + response.getResultCode().name() +
+					" Info: " + response.getSystemCapability().getSystemCapabilityType() +
+					" OTHER STUFF: " + response.getSystemCapability().getCapabilityForType(SystemCapabilityType.REMOTE_CONTROL).serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onOnPermissionsChange(OnPermissionsChange notification) {
+		Log.i(TAG, "Permision changed: " + notification);
+        /* Uncomment to subscribe to vehicle data
+        List<PermissionItem> permissions = notification.getPermissionItem();
+        for(PermissionItem permission:permissions){
+            if(permission.getRpcName().equalsIgnoreCase(FunctionID.SUBSCRIBE_VEHICLE_DATA.name())){
+                if(permission.getHMIPermissions().getAllowed()!=null && permission.getHMIPermissions().getAllowed().size()>0){
+                    if(!isVehicleDataSubscribed){ //If we haven't already subscribed we will subscribe now
+                        //TODO: Add the vehicle data items you want to subscribe to
+                        //proxy.subscribevehicledata(gps, speed, rpm, fuelLevel, fuelLevel_State, instantFuelConsumption, externalTemperature, prndl, tirePressure, odometer, beltStatus, bodyInformation, deviceStatus, driverBraking, correlationID);
+                        proxy.subscribevehicledata(false, true, rpm, false, false, false, false, false, false, false, false, false, false, false, autoIncCorrId++);
+                    }
+                }
+            }
         }
-    }
-
-    @Override
-    public void onOnVehicleData(OnVehicleData notification){
-        Log.i(TAG, "onOnVehicleData notification from SDL: " + notification);
-    }
-
-    @Override
-    public void onOnCommand(OnCommand notification){
-        Log.i(TAG, "onOnCommand notification from SDL: " + notification);
-    }
-
-    @Override
-    public void onGetWayPointsResponse(GetWayPointsResponse response){
-        Log.i(TAG, "onGetWayPointsResponse response from SDL: " + response);
-    }
-
-    @Override
-    public void onAddCommandResponse(AddCommandResponse response){
-        Log.i(TAG, "onAddCommandResponse response from SDL: " + response);
-    }
-
-    @Override
-    public void onOnWayPointChange(OnWayPointChange notification){
-        Log.i(TAG, "OnWayPointChange response from SDL: " + notification);
-    }
-    @Override
-    public void onUnsubscribeWayPointsResponse(UnsubscribeWayPointsResponse response){
-        Log.i(TAG, "onUnsubscribeWayPointsResponse response from SDL: " + response);
-    }
-
-    @Override
-    public void onAddSubMenuResponse(AddSubMenuResponse response) {
-        Log.i(TAG, "AddSubMenu response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onCreateInteractionChoiceSetResponse(CreateInteractionChoiceSetResponse response) {
-        Log.i(TAG, "CreateInteractionChoiceSet response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onAlertResponse(AlertResponse response) {
-        Log.i(TAG, "Alert response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onDeleteCommandResponse(DeleteCommandResponse response) {
-        Log.i(TAG, "DeleteCommand response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onDeleteInteractionChoiceSetResponse(DeleteInteractionChoiceSetResponse response) {
-        Log.i(TAG, "DeleteInteractionChoiceSet response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onDeleteSubMenuResponse(DeleteSubMenuResponse response) {
-        Log.i(TAG, "DeleteSubMenu response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onPerformInteractionResponse(PerformInteractionResponse response) {
-        Log.i(TAG, "PerformInteraction response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onResetGlobalPropertiesResponse(
-            ResetGlobalPropertiesResponse response) {
-        Log.i(TAG, "ResetGlobalProperties response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
-
-    @Override
-    public void onSetGlobalPropertiesResponse(SetGlobalPropertiesResponse response) {
-        Log.i(TAG, "SetGlobalProperties response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
+        */
+	}
+
+	@Override
+	public void onListFilesResponse(ListFilesResponse response){
+		Log.i(TAG, "onListFilesResponse response from SDL: " + response);
+	}
+
+	@Override
+	public void onSubscribeWayPointsResponse(SubscribeWayPointsResponse response){
+		Log.i(TAG, "onSubscribeWayPointsResponse response from SDL: " + response);
+	}
+
+	@Override
+	public void onSubscribeVehicleDataResponse(SubscribeVehicleDataResponse response){
+		Log.i(TAG, "onSubscribeVehicleDataResponse response from SDL: " + response);
+	}
+
+	@Override
+	public void onPutFileResponse(PutFileResponse response){
+		Log.i(TAG, "onPutFileResponse response from SDL: " + response);
+	}
+
+	@Override
+	public void onOnLockScreenNotification(OnLockScreenStatus notification){
+		Log.i(TAG, "onOnLockScreenNotification notification from SDL: " + notification);
+		if(notification.getHMILevel() == HMILevel.HMI_FULL && notification.getShowLockScreen() == LockScreenStatus.REQUIRED) {
+			Intent showLockScreenIntent = new Intent(this, LockScreenActivity.class);
+			showLockScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			startActivity(showLockScreenIntent);
+		}else{
+			sendBroadcast(new Intent("CLOSE_LOCK_SCREEN"));
+		}
+	}
+
+	@Override
+	public void onOnVehicleData(OnVehicleData notification){
+		Log.i(TAG, "onOnVehicleData notification from SDL: " + notification);
+	}
+
+	@Override
+	public void onOnCommand(OnCommand notification){
+		Log.i(TAG, "onOnCommand notification from SDL: " + notification);
+	}
+
+	@Override
+	public void onGetWayPointsResponse(GetWayPointsResponse response){
+		Log.i(TAG, "onGetWayPointsResponse response from SDL: " + response);
+	}
+
+	@Override
+	public void onAddCommandResponse(AddCommandResponse response){
+		Log.i(TAG, "onAddCommandResponse response from SDL: " + response);
+	}
+
+	@Override
+	public void onOnWayPointChange(OnWayPointChange notification){
+		Log.i(TAG, "OnWayPointChange response from SDL: " + notification);
+	}
+	@Override
+	public void onUnsubscribeWayPointsResponse(UnsubscribeWayPointsResponse response){
+		Log.i(TAG, "onUnsubscribeWayPointsResponse response from SDL: " + response);
+	}
+
+	@Override
+	public void onAddSubMenuResponse(AddSubMenuResponse response) {
+		Log.i(TAG, "AddSubMenu response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onCreateInteractionChoiceSetResponse(CreateInteractionChoiceSetResponse response) {
+		Log.i(TAG, "CreateInteractionChoiceSet response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onAlertResponse(AlertResponse response) {
+		Log.i(TAG, "Alert response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onDeleteCommandResponse(DeleteCommandResponse response) {
+		Log.i(TAG, "DeleteCommand response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onDeleteInteractionChoiceSetResponse(DeleteInteractionChoiceSetResponse response) {
+		Log.i(TAG, "DeleteInteractionChoiceSet response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onDeleteSubMenuResponse(DeleteSubMenuResponse response) {
+		Log.i(TAG, "DeleteSubMenu response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onPerformInteractionResponse(PerformInteractionResponse response) {
+		Log.i(TAG, "PerformInteraction response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onResetGlobalPropertiesResponse(
+			ResetGlobalPropertiesResponse response) {
+		Log.i(TAG, "ResetGlobalProperties response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    @Override
-    public void onSetMediaClockTimerResponse(SetMediaClockTimerResponse response) {
-        Log.i(TAG, "SetMediaClockTimer response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
+	@Override
+	public void onSetGlobalPropertiesResponse(SetGlobalPropertiesResponse response) {
+		Log.i(TAG, "SetGlobalProperties response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    @Override
-    public void onSpeakResponse(SpeakResponse response) {
-        Log.i(TAG, "SpeakCommand response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
+	@Override
+	public void onSetMediaClockTimerResponse(SetMediaClockTimerResponse response) {
+		Log.i(TAG, "SetMediaClockTimer response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    @Override
-    public void onOnButtonEvent(OnButtonEvent notification) {
-        Log.i(TAG, "OnButtonEvent notification from SDL: " + notification);
-    }
+	@Override
+	public void onSpeakResponse(SpeakResponse response) {
+		Log.i(TAG, "SpeakCommand response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    @Override
-    public void onOnButtonPress(OnButtonPress notification) {
-        Log.i(TAG, "OnButtonPress notification from SDL: " + notification);
-    }
+	@Override
+	public void onOnButtonEvent(OnButtonEvent notification) {
+		Log.i(TAG, "OnButtonEvent notification from SDL: " + notification);
+	}
 
-    @Override
-    public void onSubscribeButtonResponse(SubscribeButtonResponse response) {
-        Log.i(TAG, "SubscribeButton response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
+	@Override
+	public void onOnButtonPress(OnButtonPress notification) {
+		Log.i(TAG, "OnButtonPress notification from SDL: " + notification);
+	}
 
-    @Override
-    public void onUnsubscribeButtonResponse(UnsubscribeButtonResponse response) {
-        Log.i(TAG, "UnsubscribeButton response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
+	@Override
+	public void onSubscribeButtonResponse(SubscribeButtonResponse response) {
+		Log.i(TAG, "SubscribeButton response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
+	@Override
+	public void onUnsubscribeButtonResponse(UnsubscribeButtonResponse response) {
+		Log.i(TAG, "UnsubscribeButton response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    @Override
-    public void onOnTBTClientState(OnTBTClientState notification) {
-        Log.i(TAG, "OnTBTClientState notification from SDL: " + notification);
-    }
 
-    @Override
-    public void onUnsubscribeVehicleDataResponse(
-            UnsubscribeVehicleDataResponse response) {
-        Log.i(TAG, "UnsubscribeVehicleData response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	@Override
+	public void onOnTBTClientState(OnTBTClientState notification) {
+		Log.i(TAG, "OnTBTClientState notification from SDL: " + notification);
+	}
 
-    }
+	@Override
+	public void onUnsubscribeVehicleDataResponse(
+			UnsubscribeVehicleDataResponse response) {
+		Log.i(TAG, "UnsubscribeVehicleData response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onGetVehicleDataResponse(GetVehicleDataResponse response) {
-        Log.i(TAG, "GetVehicleData response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onGetVehicleDataResponse(GetVehicleDataResponse response) {
+		Log.i(TAG, "GetVehicleData response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onReadDIDResponse(ReadDIDResponse response) {
-        Log.i(TAG, "ReadDID response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onReadDIDResponse(ReadDIDResponse response) {
+		Log.i(TAG, "ReadDID response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onGetDTCsResponse(GetDTCsResponse response) {
-        Log.i(TAG, "GetDTCs response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onGetDTCsResponse(GetDTCsResponse response) {
+		Log.i(TAG, "GetDTCs response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
+	}
 
-    @Override
-    public void onPerformAudioPassThruResponse(PerformAudioPassThruResponse response) {
-        Log.i(TAG, "PerformAudioPassThru response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    }
+	@Override
+	public void onPerformAudioPassThruResponse(PerformAudioPassThruResponse response) {
+		Log.i(TAG, "PerformAudioPassThru response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onEndAudioPassThruResponse(EndAudioPassThruResponse response) {
-        Log.i(TAG, "EndAudioPassThru response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onEndAudioPassThruResponse(EndAudioPassThruResponse response) {
+		Log.i(TAG, "EndAudioPassThru response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onOnAudioPassThru(OnAudioPassThru notification) {
-        Log.i(TAG, "OnAudioPassThru notification from SDL: " + notification );
+	}
 
-    }
+	@Override
+	public void onOnAudioPassThru(OnAudioPassThru notification) {
+		Log.i(TAG, "OnAudioPassThru notification from SDL: " + notification );
 
-    @Override
-    public void onDeleteFileResponse(DeleteFileResponse response) {
-        Log.i(TAG, "DeleteFile response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onDeleteFileResponse(DeleteFileResponse response) {
+		Log.i(TAG, "DeleteFile response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onSetAppIconResponse(SetAppIconResponse response) {
-        Log.i(TAG, "SetAppIcon response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onSetAppIconResponse(SetAppIconResponse response) {
+		Log.i(TAG, "SetAppIcon response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onScrollableMessageResponse(ScrollableMessageResponse response) {
-        Log.i(TAG, "ScrollableMessage response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onScrollableMessageResponse(ScrollableMessageResponse response) {
+		Log.i(TAG, "ScrollableMessage response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onChangeRegistrationResponse(ChangeRegistrationResponse response) {
-        Log.i(TAG, "ChangeRegistration response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onChangeRegistrationResponse(ChangeRegistrationResponse response) {
+		Log.i(TAG, "ChangeRegistration response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onOnLanguageChange(OnLanguageChange notification) {
-        Log.i(TAG, "OnLanguageChange notification from SDL: " + notification);
+	}
 
-    }
+	@Override
+	public void onOnLanguageChange(OnLanguageChange notification) {
+		Log.i(TAG, "OnLanguageChange notification from SDL: " + notification);
 
-    @Override
-    public void onSliderResponse(SliderResponse response) {
-        Log.i(TAG, "Slider response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onSliderResponse(SliderResponse response) {
+		Log.i(TAG, "Slider response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
+	}
 
-    @Override
-    public void onOnHashChange(OnHashChange notification) {
-        Log.i(TAG, "OnHashChange notification from SDL: " + notification);
 
-    }
+	@Override
+	public void onOnHashChange(OnHashChange notification) {
+		Log.i(TAG, "OnHashChange notification from SDL: " + notification);
 
-    @Override
-    public void onOnSystemRequest(OnSystemRequest notification) {
-        Log.i(TAG, "OnSystemRequest notification from SDL: " + notification);
+	}
 
-    }
+	@Override
+	public void onOnSystemRequest(OnSystemRequest notification) {
+		Log.i(TAG, "OnSystemRequest notification from SDL: " + notification);
 
-    @Override
-    public void onSystemRequestResponse(SystemRequestResponse response) {
-        Log.i(TAG, "SystemRequest response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onSystemRequestResponse(SystemRequestResponse response) {
+		Log.i(TAG, "SystemRequest response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onOnKeyboardInput(OnKeyboardInput notification) {
-        Log.i(TAG, "OnKeyboardInput notification from SDL: " + notification);
+	}
 
-    }
+	@Override
+	public void onOnKeyboardInput(OnKeyboardInput notification) {
+		Log.i(TAG, "OnKeyboardInput notification from SDL: " + notification);
 
-    @Override
-    public void onOnTouchEvent(OnTouchEvent notification) {
-        Log.i(TAG, "OnTouchEvent notification from SDL: " + notification);
+	}
 
-    }
+	@Override
+	public void onOnTouchEvent(OnTouchEvent notification) {
+		Log.i(TAG, "OnTouchEvent notification from SDL: " + notification);
 
-    @Override
-    public void onDiagnosticMessageResponse(DiagnosticMessageResponse response) {
-        Log.i(TAG, "DiagnosticMessage response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onDiagnosticMessageResponse(DiagnosticMessageResponse response) {
+		Log.i(TAG, "DiagnosticMessage response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onOnStreamRPC(OnStreamRPC notification) {
-        Log.i(TAG, "OnStreamRPC notification from SDL: " + notification);
+	}
 
-    }
+	@Override
+	public void onOnStreamRPC(OnStreamRPC notification) {
+		Log.i(TAG, "OnStreamRPC notification from SDL: " + notification);
 
-    @Override
-    public void onStreamRPCResponse(StreamRPCResponse response) {
-        Log.i(TAG, "StreamRPC response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onStreamRPCResponse(StreamRPCResponse response) {
+		Log.i(TAG, "StreamRPC response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onDialNumberResponse(DialNumberResponse response) {
-        Log.i(TAG, "DialNumber response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onDialNumberResponse(DialNumberResponse response) {
+		Log.i(TAG, "DialNumber response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onSendLocationResponse(SendLocationResponse response) {
-        Log.i(TAG, "SendLocation response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onSendLocationResponse(SendLocationResponse response) {
+		Log.i(TAG, "SendLocation response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onServiceEnded(OnServiceEnded serviceEnded) {
+	}
 
-    }
+	@Override
+	public void onServiceEnded(OnServiceEnded serviceEnded) {
 
-    @Override
-    public void onServiceNACKed(OnServiceNACKed serviceNACKed) {
+	}
 
-    }
+	@Override
+	public void onServiceNACKed(OnServiceNACKed serviceNACKed) {
 
-    @Override
-    public void onShowConstantTbtResponse(ShowConstantTbtResponse response) {
-        Log.i(TAG, "ShowConstantTbt response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onShowConstantTbtResponse(ShowConstantTbtResponse response) {
+		Log.i(TAG, "ShowConstantTbt response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onAlertManeuverResponse(AlertManeuverResponse response) {
-        Log.i(TAG, "AlertManeuver response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onAlertManeuverResponse(AlertManeuverResponse response) {
+		Log.i(TAG, "AlertManeuver response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onUpdateTurnListResponse(UpdateTurnListResponse response) {
-        Log.i(TAG, "UpdateTurnList response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
 
-    }
+	@Override
+	public void onUpdateTurnListResponse(UpdateTurnListResponse response) {
+		Log.i(TAG, "UpdateTurnList response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 
-    @Override
-    public void onServiceDataACK(int dataSize) {
+	}
 
-    }
+	@Override
+	public void onServiceDataACK(int dataSize) {
 
-    @Override
-    public void onOnDriverDistraction(OnDriverDistraction notification) {
-        // Some RPCs (depending on region) cannot be sent when driver distraction is active.
-    }
+	}
 
-    @Override
-    public void onError(String info, Exception e) {
-    }
+	@Override
+	public void onOnDriverDistraction(OnDriverDistraction notification) {
+		// Some RPCs (depending on region) cannot be sent when driver distraction is active.
+	}
 
-    @Override
-    public void onGenericResponse(GenericResponse response) {
-        Log.i(TAG, "Generic response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-    }
+	@Override
+	public void onError(String info, Exception e) {
+	}
 
-    @Override
-	public void onGetSystemCapabilityResponse(GetSystemCapabilityResponse response){
-		Log.i(TAG, "System Capability response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	@Override
+	public void onGenericResponse(GenericResponse response) {
+		Log.i(TAG, "Generic response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onGetInteriorVehicleDataResponse(GetInteriorVehicleDataResponse response) {
+		Log.i(TAG, "GetInteriorVehicleDataResponse from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	@Override
+	public void onOnInteriorVehicleData(OnInteriorVehicleData response) {
+		Log.i(TAG, "OnInteriorVehicleData from SDL: " + response.toString());
+	}
+
+	@Override
+	public void onButtonPressResponse(ButtonPressResponse response) {
+		Log.i(TAG, "ButtonPressResponse from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 	}
 
 
 
-    /**
-     * Helper method to take resource files and turn them into byte arrays
-     * @param resource Resource file id.
-     * @return Resulting byte array.
-     */
-    private byte[] contentsOfResource(int resource) {
-        InputStream is = null;
-        try {
-            is = getResources().openRawResource(resource);
-            ByteArrayOutputStream os = new ByteArrayOutputStream(is.available());
-            final int bufferSize = 4096;
-            final byte[] buffer = new byte[bufferSize];
-            int available;
-            while ((available = is.read(buffer)) >= 0) {
-                os.write(buffer, 0, available);
-            }
-            return os.toByteArray();
-        } catch (IOException e) {
-            Log.w(TAG, "Can't read icon file", e);
-            return null;
-        } finally {
-            if (is != null) {
-                try {
-                    is.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
+	@Override
+	public void onSetInteriorVehicleDataResponse(SetInteriorVehicleDataResponse response) {
+		Log.i(TAG, "SetInteriorVehicleDataResponse from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+	}
+
+	/**
+	 * Helper method to take resource files and turn them into byte arrays
+	 * @param resource Resource file id.
+	 * @return Resulting byte array.
+	 */
+	private byte[] contentsOfResource(int resource) {
+		InputStream is = null;
+		try {
+			is = getResources().openRawResource(resource);
+			ByteArrayOutputStream os = new ByteArrayOutputStream(is.available());
+			final int bufferSize = 4096;
+			final byte[] buffer = new byte[bufferSize];
+			int available;
+			while ((available = is.read(buffer)) >= 0) {
+				os.write(buffer, 0, available);
+			}
+			return os.toByteArray();
+		} catch (IOException e) {
+			Log.w(TAG, "Can't read icon file", e);
+			return null;
+		} finally {
+			if (is != null) {
+				try {
+					is.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
 
 }
