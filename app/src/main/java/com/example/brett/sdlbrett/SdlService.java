@@ -16,6 +16,7 @@ import com.smartdevicelink.proxy.rpc.Choice;
 import com.smartdevicelink.proxy.rpc.CreateInteractionChoiceSet;
 import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
+import com.smartdevicelink.proxy.rpc.GetInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.GetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.GetSystemCapability;
 import com.smartdevicelink.proxy.rpc.GetSystemCapabilityResponse;
@@ -37,6 +38,7 @@ import com.smartdevicelink.proxy.rpc.SystemCapability;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
+import com.smartdevicelink.proxy.rpc.enums.ModuleType;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
@@ -115,6 +117,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.smartdevicelink.proxy.rpc.SystemCapability.KEY_REMOTE_CONTROL_CAPABILITY;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 
 /**
  *
@@ -140,13 +144,13 @@ public class SdlService extends Service implements IProxyListenerALM {
 	private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
 	//CORE
-	private static final String CORE_IP = "192.168.1.148";
+	private static final String CORE_IP = "192.168.1.59";
 	private static final int CORE_PORT = 12345;
 	private static final String TAG = "SDL Service";
 
 	// Interface style. Generic HMI currently supports
 	// MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
-	private static final String INTERFACE = "MEDIA";
+	private static final String INTERFACE = "REMOTE_CONTROL";
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -223,6 +227,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 				// Set display layout
 				sendDisplayLayout();
 
+
 				break;
 			case HMI_LIMITED:
 				break;
@@ -237,7 +242,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 					//we must send image to core before using it.
 					putAndSetAppIcon();
 				}
-
 				break;
 			default:
 				return;
@@ -478,12 +482,42 @@ public class SdlService extends Service implements IProxyListenerALM {
 	@Override
 	public void onGetSystemCapabilityResponse(GetSystemCapabilityResponse response) {
 		try {
-			Log.i(TAG, "GetSystemCapabilityResponse from SDL: " + response.getResultCode().name() +
+			Log.i(TAG, "REMOTE CONTROL GetSystemCapabilityResponse from SDL: " + response.getResultCode().name() +
 					" Info: " + response.getSystemCapability().getSystemCapabilityType() +
-					" OTHER STUFF: " + response.getSystemCapability().getCapabilityForType(SystemCapabilityType.REMOTE_CONTROL).serializeJSON());
+					" OTHER STUFF: " + response.getSystemCapability().serializeJSON());
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
+		if (response.getResultCode().name().equalsIgnoreCase("SUCCESS")){
+			getInteriorVehicleData();
+		}
+
+	}
+
+	public void getInteriorVehicleData() {
+		GetInteriorVehicleData ivd = new GetInteriorVehicleData();
+		ivd.setModuleType(ModuleType.CLIMATE);
+		ivd.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		try {
+			proxy.sendRPCRequest(ivd);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onGetInteriorVehicleDataResponse(GetInteriorVehicleDataResponse response) {
+		try {
+			Log.i(TAG, "REMOTE CONTROL GetInteriorVehicleDataResponse from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onOnInteriorVehicleData(OnInteriorVehicleData response) {
+		Log.i(TAG, "REMOTE CONTROL OnInteriorVehicleData from SDL: " + response.toString());
 	}
 
 	@Override
@@ -834,16 +868,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 	@Override
 	public void onGenericResponse(GenericResponse response) {
 		Log.i(TAG, "Generic response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-	}
-
-	@Override
-	public void onGetInteriorVehicleDataResponse(GetInteriorVehicleDataResponse response) {
-		Log.i(TAG, "GetInteriorVehicleDataResponse from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-	}
-
-	@Override
-	public void onOnInteriorVehicleData(OnInteriorVehicleData response) {
-		Log.i(TAG, "OnInteriorVehicleData from SDL: " + response.toString());
 	}
 
 	@Override
