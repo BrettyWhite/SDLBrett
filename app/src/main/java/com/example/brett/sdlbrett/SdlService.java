@@ -20,6 +20,7 @@ import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.Image;
 import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
+import com.smartdevicelink.proxy.rpc.MetadataTags;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
@@ -31,6 +32,7 @@ import com.smartdevicelink.proxy.rpc.SystemCapability;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
+import com.smartdevicelink.proxy.rpc.enums.MetadataType;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
@@ -265,10 +267,26 @@ public class SdlService extends Service implements IProxyListenerALM {
     public void createTextFields(){
         Show show = new Show();
 
+		ArrayList<MetadataType> field1Types = new ArrayList<MetadataType>();
+		field1Types.add(0, MetadataType.MEDIA_TITLE);
+
+		ArrayList<MetadataType> field2Types = new ArrayList<MetadataType>();
+		field2Types.add(0, MetadataType.MEDIA_ALBUM);
+
+		ArrayList<MetadataType> field3Types = new ArrayList<MetadataType>();
+		field3Types.add(0, MetadataType.MEDIA_ARTIST);
+
+
+		MetadataTags mt = new MetadataTags();
+		mt.setMainField1(field1Types);
+		mt.setMainField2(field2Types);
+		mt.setMainField3(field3Types);
+
         // Fields will change depending on layout used
         show.setMainField1("Season 1 Theme Song");
         show.setMainField2("South Park Album");
         show.setMainField3("South Park");
+		show.setMetadataTags(mt);
         show.setCorrelationID(CorrelationIdGenerator.generateId());
 
         try {
