@@ -101,6 +101,8 @@ import com.smartdevicelink.proxy.rpc.enums.HMILevel;
 import com.smartdevicelink.proxy.rpc.enums.LockScreenStatus;
 import com.smartdevicelink.util.CorrelationIdGenerator;
 
+import org.json.JSONException;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -131,7 +133,7 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
     //CORE
-    private static final String CORE_IP = "192.168.1.207";
+    private static final String CORE_IP = "192.168.1.234";
     private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
 
@@ -156,10 +158,10 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //Create a new proxy using Bluetooth transport
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
-                proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
+                //proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 
                 // USE TCP FOR EMULATOR (no BlueTooth)
-                //proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -264,25 +266,26 @@ public class SdlService extends Service implements IProxyListenerALM {
         createMenu();
     }
 
-    public void createTextFields(){
-        Show show = new Show();
+    public void createTextFields() {
 
+		// Create lists of metadata types for each field used
 		ArrayList<MetadataType> field1Types = new ArrayList<MetadataType>();
-		field1Types.add(0, MetadataType.MEDIA_TITLE);
+		field1Types.add(0, MetadataType.mediaTitle);
 
 		ArrayList<MetadataType> field2Types = new ArrayList<MetadataType>();
-		field2Types.add(0, MetadataType.MEDIA_ALBUM);
+		field2Types.add(0, MetadataType.mediaAlbum);
 
 		ArrayList<MetadataType> field3Types = new ArrayList<MetadataType>();
-		field3Types.add(0, MetadataType.MEDIA_ARTIST);
+		field3Types.add(0, MetadataType.mediaArtist);
 
-
+		// Create struct object
 		MetadataTags mt = new MetadataTags();
 		mt.setMainField1(field1Types);
 		mt.setMainField2(field2Types);
 		mt.setMainField3(field3Types);
 
-        // Fields will change depending on layout used
+        // Create show
+		Show show = new Show();
         show.setMainField1("Season 1 Theme Song");
         show.setMainField2("South Park Album");
         show.setMainField3("South Park");
@@ -408,7 +411,7 @@ public class SdlService extends Service implements IProxyListenerALM {
                 if(response.getSuccess()){
                     try {
                         proxy.putfile(fileName, fileType, persistent, data, id);
-                        setImage(fileName);
+                       // setImage(fileName);
                         Log.i(TAG,"SdlService "+"IMAGE PUT SUCCESSFULLY.");
                     } catch (SdlException e) {
                         e.printStackTrace();
@@ -452,13 +455,11 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     @Override
     public void onShowResponse(ShowResponse response) {
-        Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-
-        if (response.getSuccess()) {
-            Log.i(TAG,"SdlService "+"Successfully showed.");
-        } else {
-            Log.i(TAG,"SdlService "+"Show request was rejected. "+response.getInfo());
-        }
+		try {
+			Log.i(TAG, "Show response from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
     }
 
     /**
