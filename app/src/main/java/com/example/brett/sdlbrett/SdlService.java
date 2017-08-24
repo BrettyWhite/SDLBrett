@@ -11,8 +11,10 @@ import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
+import com.smartdevicelink.proxy.rpc.ButtonPress;
 import com.smartdevicelink.proxy.rpc.ButtonPressResponse;
 import com.smartdevicelink.proxy.rpc.Choice;
+import com.smartdevicelink.proxy.rpc.ClimateControlData;
 import com.smartdevicelink.proxy.rpc.CreateInteractionChoiceSet;
 import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
@@ -24,24 +26,35 @@ import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.Image;
 import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
+import com.smartdevicelink.proxy.rpc.ModuleData;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
+import com.smartdevicelink.proxy.rpc.RadioControlData;
+import com.smartdevicelink.proxy.rpc.RdsData;
 import com.smartdevicelink.proxy.rpc.RemoteControlCapabilities;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
+import com.smartdevicelink.proxy.rpc.SetInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.SetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SoftButton;
 import com.smartdevicelink.proxy.rpc.SubscribeButton;
 import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.SystemCapability;
+import com.smartdevicelink.proxy.rpc.Temperature;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.ButtonName;
+import com.smartdevicelink.proxy.rpc.enums.ButtonPressMode;
+import com.smartdevicelink.proxy.rpc.enums.DefrostZone;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
 import com.smartdevicelink.proxy.rpc.enums.ModuleType;
+import com.smartdevicelink.proxy.rpc.enums.RadioBand;
+import com.smartdevicelink.proxy.rpc.enums.RadioState;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
+import com.smartdevicelink.proxy.rpc.enums.TemperatureUnit;
+import com.smartdevicelink.proxy.rpc.enums.VentilationMode;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
@@ -144,7 +157,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 	private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
 	//CORE
-	private static final String CORE_IP = "192.168.1.59";
+	private static final String CORE_IP = "192.168.1.148";
 	private static final int CORE_PORT = 12345;
 	private static final String TAG = "SDL Service";
 
@@ -219,13 +232,14 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 	@Override
 	public void onOnHMIStatus(OnHMIStatus notification) {
-
+		Log.i("REMOTE CONTROL ","HMI LEVEL "+ notification.getHmiLevel().toString());
 		switch(notification.getHmiLevel()) {
 			case HMI_FULL:
 				//send welcome message, addcommands, subscribe to buttons ect
 
 				// Set display layout
 				sendDisplayLayout();
+				//getInteriorVehicleData();
 
 
 				break;
@@ -241,7 +255,9 @@ public class SdlService extends Service implements IProxyListenerALM {
 				if (supported) {
 					//we must send image to core before using it.
 					putAndSetAppIcon();
+
 				}
+				setInteriorVehicleData();
 				break;
 			default:
 				return;
@@ -481,27 +497,61 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 	@Override
 	public void onGetSystemCapabilityResponse(GetSystemCapabilityResponse response) {
-		try {
+		/*try {
 			Log.i(TAG, "REMOTE CONTROL GetSystemCapabilityResponse from SDL: " + response.getResultCode().name() +
 					" Info: " + response.getSystemCapability().getSystemCapabilityType() +
 					" OTHER STUFF: " + response.getSystemCapability().serializeJSON());
 		} catch (JSONException e) {
 			e.printStackTrace();
-		}
-		if (response.getResultCode().name().equalsIgnoreCase("SUCCESS")){
-			getInteriorVehicleData();
-		}
+		}*/
 
 	}
 
 	public void getInteriorVehicleData() {
 		GetInteriorVehicleData ivd = new GetInteriorVehicleData();
-		ivd.setModuleType(ModuleType.CLIMATE);
+		ivd.setModuleType(ModuleType.RADIO);
+		ivd.setSubscribe(TRUE);
 		ivd.setCorrelationID(CorrelationIdGenerator.generateId());
 
 		try {
 			proxy.sendRPCRequest(ivd);
 		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void setInteriorVehicleData() {
+		Log.i("REMOTE CONTROL","set being called");
+
+		ButtonPress bp = new ButtonPress();
+		bp.setModuleType(ModuleType.RADIO);
+		bp.setButtonName(ButtonName.EJECT);
+		bp.setButtonPressMode(ButtonPressMode.SHORT);
+		bp.setCorrelationID(CorrelationIdGenerator.generateId());
+
+		try {
+			proxy.sendRPCRequest(bp);
+			Log.i("REMOTE CONTROL","sent RPC if you see this");
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	@Override
+	public void onButtonPressResponse(ButtonPressResponse response) {
+		try {
+			Log.i(TAG, "REMOTE CONTROL ButtonPressResponse from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onSetInteriorVehicleDataResponse(SetInteriorVehicleDataResponse response) {
+		try {
+			Log.i(TAG, "REMOTE CONTROL SetInteriorVehicleDataResponse from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
 			e.printStackTrace();
 		}
 	}
@@ -517,7 +567,11 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 	@Override
 	public void onOnInteriorVehicleData(OnInteriorVehicleData response) {
-		Log.i(TAG, "REMOTE CONTROL OnInteriorVehicleData from SDL: " + response.toString());
+		try {
+			Log.i(TAG, "REMOTE CONTROL OnInteriorVehicleData from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -870,17 +924,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 		Log.i(TAG, "Generic response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
 	}
 
-	@Override
-	public void onButtonPressResponse(ButtonPressResponse response) {
-		Log.i(TAG, "ButtonPressResponse from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-	}
-
-
-
-	@Override
-	public void onSetInteriorVehicleDataResponse(SetInteriorVehicleDataResponse response) {
-		Log.i(TAG, "SetInteriorVehicleDataResponse from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
-	}
 
 	/**
 	 * Helper method to take resource files and turn them into byte arrays
