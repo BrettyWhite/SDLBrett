@@ -9,6 +9,7 @@ import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
+import com.smartdevicelink.proxy.interfaces.OnSystemCapabilityListener;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
 import com.smartdevicelink.proxy.rpc.Choice;
@@ -17,6 +18,7 @@ import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
 import com.smartdevicelink.proxy.rpc.GetSystemCapabilityResponse;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
+import com.smartdevicelink.proxy.rpc.HMICapabilities;
 import com.smartdevicelink.proxy.rpc.Image;
 import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
@@ -25,6 +27,7 @@ import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SoftButton;
+import com.smartdevicelink.proxy.rpc.SoftButtonCapabilities;
 import com.smartdevicelink.proxy.rpc.SubscribeButton;
 import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.SystemCapability;
@@ -33,6 +36,7 @@ import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
+import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
@@ -99,11 +103,15 @@ import com.smartdevicelink.proxy.rpc.enums.HMILevel;
 import com.smartdevicelink.proxy.rpc.enums.LockScreenStatus;
 import com.smartdevicelink.util.CorrelationIdGenerator;
 
+import org.json.JSONException;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.smartdevicelink.proxy.constants.Names.info;
 
 /**
  *
@@ -129,7 +137,7 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
     //CORE
-    private static final String CORE_IP = "192.168.1.207";
+    private static final String CORE_IP = "192.168.1.59";
     private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
 
@@ -154,10 +162,10 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //Create a new proxy using Bluetooth transport
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
-                proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
+                //proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 
                 // USE TCP FOR EMULATOR (no BlueTooth)
-                //proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -226,6 +234,7 @@ public class SdlService extends Service implements IProxyListenerALM {
                     //we must send image to core before using it.
                     putAndSetAppIcon();
                 }
+                getCapabilities();
 
                 break;
             default:
@@ -277,6 +286,7 @@ public class SdlService extends Service implements IProxyListenerALM {
             e.printStackTrace();
         }
     }
+
 
     public void createButtons(){
 
@@ -341,6 +351,31 @@ public class SdlService extends Service implements IProxyListenerALM {
         Log.i(TAG,"SdlService "+"Graphics Supported: "+graphicsSupported);
         return graphicsSupported;
     }
+
+    public void getCapabilities() {
+
+		proxy.getCapability(SystemCapabilityType.SOFTBUTTON, new OnSystemCapabilityListener(){
+
+			@Override
+			public void onCapabilityRetrieved(Object capability){
+				List<SoftButtonCapabilities> scs = (List<SoftButtonCapabilities>) capability;
+				for (SoftButtonCapabilities sc : scs){
+					try {
+						Log.i("Capabilities: ", sc.serializeJSON().toString());
+					} catch (JSONException e) {
+						e.printStackTrace();
+					}
+				}
+
+			}
+
+			@Override
+			public void onError(String info){
+				Log.i("Capabilities error", info);
+			}
+		});
+
+	}
 
     public void putAndSetAppIcon(){
         PutFile putFileRequest = new PutFile();
