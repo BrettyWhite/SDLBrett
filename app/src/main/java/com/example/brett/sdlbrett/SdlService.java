@@ -22,6 +22,7 @@ import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
+import com.smartdevicelink.proxy.rpc.SendHapticDataResponse;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SoftButton;
@@ -499,9 +500,14 @@ public class SdlService extends Service implements IProxyListenerALM {
     }
 
     @Override
-    public void onOnVehicleData(OnVehicleData notification){
-        Log.i(TAG, "onOnVehicleData notification from SDL: " + notification);
-    }
+	public void onOnVehicleData(OnVehicleData notification){
+		Log.i(TAG, "onOnVehicleData notification from SDL: " + notification);
+	}
+
+	@Override
+	public void onSendHapticDataResponse(SendHapticDataResponse notification){
+		Log.i(TAG, "onOnVehicleData notification from SDL: " + notification);
+	}
 
     @Override
     public void onOnCommand(OnCommand notification){
