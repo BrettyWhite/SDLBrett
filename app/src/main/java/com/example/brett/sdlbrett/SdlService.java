@@ -24,6 +24,7 @@ import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
+import com.smartdevicelink.proxy.rpc.SendHapticDataResponse;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SoftButton;
@@ -500,6 +501,11 @@ public class SdlService extends Service implements IProxyListenerALM {
 		}
 		*/
     }
+
+    @Override
+	public void onSendHapticDataResponse(SendHapticDataResponse response) {
+		
+	}
 
     @Override
     public void onListFilesResponse(ListFilesResponse response){
