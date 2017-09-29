@@ -12,10 +12,12 @@ import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.interfaces.OnSystemCapabilityListener;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
+import com.smartdevicelink.proxy.rpc.ButtonPressResponse;
 import com.smartdevicelink.proxy.rpc.Choice;
 import com.smartdevicelink.proxy.rpc.CreateInteractionChoiceSet;
 import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
+import com.smartdevicelink.proxy.rpc.GetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.GetSystemCapabilityResponse;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.HMICapabilities;
@@ -23,9 +25,11 @@ import com.smartdevicelink.proxy.rpc.Image;
 import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
+import com.smartdevicelink.proxy.rpc.OnInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.SendHapticDataResponse;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
+import com.smartdevicelink.proxy.rpc.SetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.Show;
 import com.smartdevicelink.proxy.rpc.SoftButton;
 import com.smartdevicelink.proxy.rpc.SoftButtonCapabilities;
@@ -501,6 +505,42 @@ public class SdlService extends Service implements IProxyListenerALM {
 		}
 		*/
     }
+
+	@Override
+	public void onButtonPressResponse(ButtonPressResponse response) {
+		try {
+			Log.i(TAG, "REMOTE CONTROL ButtonPressResponse from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onSetInteriorVehicleDataResponse(SetInteriorVehicleDataResponse response) {
+		try {
+			Log.i(TAG, "REMOTE CONTROL SetInteriorVehicleDataResponse from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onGetInteriorVehicleDataResponse(GetInteriorVehicleDataResponse response) {
+		try {
+			Log.i(TAG, "REMOTE CONTROL GetInteriorVehicleDataResponse from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void onOnInteriorVehicleData(OnInteriorVehicleData response) {
+		try {
+			Log.i(TAG, "REMOTE CONTROL OnInteriorVehicleData from SDL: " + response.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
 
     @Override
 	public void onSendHapticDataResponse(SendHapticDataResponse response) {
