@@ -5,6 +5,7 @@ import android.os.Bundle;
 
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -18,12 +19,12 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         //If we are connected to a module we want to start our SdlService
-        //SdlReceiver.queryForConnectedService(this);
+        SdlReceiver.queryForConnectedService(this);
 
 
         // Start the SDLService
-        Intent sdlServiceIntent = new Intent(this, SdlService.class);
-        startService(sdlServiceIntent);
+//        Intent sdlServiceIntent = new Intent(this, SdlService.class);
+//        startService(sdlServiceIntent);
 
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);

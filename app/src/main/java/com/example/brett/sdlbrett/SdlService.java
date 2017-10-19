@@ -8,10 +8,12 @@ import android.util.Log;
 import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
+import com.smartdevicelink.proxy.SystemCapabilityManager;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.interfaces.OnSystemCapabilityListener;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
+import com.smartdevicelink.proxy.rpc.ButtonCapabilities;
 import com.smartdevicelink.proxy.rpc.ButtonPressResponse;
 import com.smartdevicelink.proxy.rpc.Choice;
 import com.smartdevicelink.proxy.rpc.CreateInteractionChoiceSet;
@@ -24,6 +26,7 @@ import com.smartdevicelink.proxy.rpc.HMICapabilities;
 import com.smartdevicelink.proxy.rpc.Image;
 import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
+import com.smartdevicelink.proxy.rpc.NavigationCapability;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
@@ -142,13 +145,13 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
     //CORE
-    private static final String CORE_IP = "192.168.1.59";
-    private static final int CORE_PORT = 12345;
+    private static final String CORE_IP = "m.sdl.tools";
+    private static final int CORE_PORT = 5877;
     private static final String TAG = "SDL Service";
 
     // Interface style. Generic HMI currently supports
     // MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
-    private static final String INTERFACE = "MEDIA";
+    private static final String INTERFACE = "DOUBLE_GRAPHIC_SOFTBUTTONS";
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -167,10 +170,10 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //Create a new proxy using Bluetooth transport
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
-                //proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
+                proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 
                 // USE TCP FOR EMULATOR (no BlueTooth)
-                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+//                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -359,28 +362,25 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     public void getCapabilities() {
 
-		proxy.getCapability(SystemCapabilityType.SOFTBUTTON, new OnSystemCapabilityListener(){
+		proxy.getCapability(SystemCapabilityType.NAVIGATION, new OnSystemCapabilityListener(){
 
 			@Override
 			public void onCapabilityRetrieved(Object capability){
-				List<SoftButtonCapabilities> scs = (List<SoftButtonCapabilities>) capability;
-				for (SoftButtonCapabilities sc : scs){
-					try {
-						Log.i("Capabilities: ", sc.serializeJSON().toString());
-					} catch (JSONException e) {
-						e.printStackTrace();
-					}
+				NavigationCapability navCapability = (NavigationCapability) capability;
+				try {
+					Log.i(TAG, "Capability: "+ navCapability.serializeJSON().toString());
+				} catch (JSONException e) {
+					e.printStackTrace();
 				}
-
 			}
 
 			@Override
 			public void onError(String info){
-				Log.i("Capabilities error", info);
+				//Log.i("Capabilities error", info);
 			}
 		});
-
 	}
+
 
     public void putAndSetAppIcon(){
         PutFile putFileRequest = new PutFile();
