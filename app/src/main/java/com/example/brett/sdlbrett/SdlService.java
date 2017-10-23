@@ -33,6 +33,7 @@ import com.smartdevicelink.proxy.rpc.OnWayPointChange;
 import com.smartdevicelink.proxy.rpc.RadioControlData;
 import com.smartdevicelink.proxy.rpc.RdsData;
 import com.smartdevicelink.proxy.rpc.RemoteControlCapabilities;
+import com.smartdevicelink.proxy.rpc.SendHapticDataResponse;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.SetInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.SetInteriorVehicleDataResponse;
@@ -623,6 +624,11 @@ public class SdlService extends Service implements IProxyListenerALM {
 		}else{
 			sendBroadcast(new Intent("CLOSE_LOCK_SCREEN"));
 		}
+	}
+
+	@Override
+	public void onSendHapticDataResponse(SendHapticDataResponse response){
+
 	}
 
 	@Override
