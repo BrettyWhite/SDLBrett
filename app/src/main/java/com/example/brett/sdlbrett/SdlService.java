@@ -158,13 +158,26 @@ public class SdlService extends Service implements IProxyListenerALM {
 	private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
 	//CORE
-	private static final String CORE_IP = "192.168.1.148";
+	private static final String CORE_IP = "192.168.1.213";
 	private static final int CORE_PORT = 12345;
 	private static final String TAG = "SDL Service";
 
-	// Interface style. Generic HMI currently supports
-	// MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
-	private static final String INTERFACE = "REMOTE_CONTROL";
+	// APP HMI TYPE
+	/*
+	DEFAULT
+	COMMUNICATION
+	MEDIA
+	MESSAGING
+	NAVIGATION
+	INFORMATION
+	SOCIAL
+	PROJECTION
+	BACKGROUND_PROCESS
+	TESTING
+	REMOTE_CONTROL
+	SYSTEM
+	*/
+	private static final String INTERFACE = "ONSCREEN_PRESETS";
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -183,10 +196,10 @@ public class SdlService extends Service implements IProxyListenerALM {
 				//Create a new proxy using Bluetooth transport
 				//The listener, app name,
 				//whether or not it is a media app and the applicationId are supplied.
-				//proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
+				proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 
 				// USE TCP FOR EMULATOR (no BlueTooth)
-				proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+//				proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
 			} catch (SdlException e) {
 				//There was an error creating the proxy
@@ -272,6 +285,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 		try{
 			proxy.sendRPCRequest(setDisplayLayoutRequest);
 		}catch (SdlException e){
+			Log.e(TAG, "DISPLAY LAYOUT FAILED");
 			e.printStackTrace();
 		}
 	}
@@ -449,7 +463,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 		Show show = new Show();
 		show.setGraphic(image);
-		show.setCorrelationID(CorrelationIdGenerator.generateId());
 		show.setOnRPCResponseListener(new OnRPCResponseListener() {
 			@Override
 			public void onResponse(int correlationId, RPCResponse response) {
@@ -526,9 +539,8 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 		ButtonPress bp = new ButtonPress();
 		bp.setModuleType(ModuleType.RADIO);
-		bp.setButtonName(ButtonName.EJECT);
+		bp.setButtonName(ButtonName.SEARCH);
 		bp.setButtonPressMode(ButtonPressMode.SHORT);
-		bp.setCorrelationID(CorrelationIdGenerator.generateId());
 
 		try {
 			proxy.sendRPCRequest(bp);
