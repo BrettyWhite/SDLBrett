@@ -382,33 +382,42 @@ public class SdlService extends Service implements IProxyListenerALM {
     	// rpc 1
 		Show show = new Show();
 		show.setMainField1("hey yall");
-		rpcs.add(0, show);
+		rpcs.add(show);
 
 		// rpc 2
 		Show show2 = new Show();
 		show2.setMainField2("Its Weds My Dudes");
-		rpcs.add(1, show2);
+		rpcs.add(show2);
 
 		// rpc 3
 		Show show3 = new Show();
 		show3.setMainField3("Hi");
-		rpcs.add(2, show3);
+		rpcs.add(show3);
+
+		// rpc 4
+		Show show4 = new Show();
+		show4.setMainField4("Hi2");
+		rpcs.add(show4);
 
     	try {
 			proxy.sendRequests(rpcs, new OnMultipleRequestListener() {
 				@Override
 				public void onUpdate(int remainingRequests) {
-
+					Log.i(TAG, "MULTIPLE REQUESTS UPDATE: " + String.valueOf(remainingRequests));
 				}
 
 				@Override
 				public void onFinished() {
-
+					Log.i(TAG, "MULTIPLE REQUESTS FINISHED");
 				}
 
 				@Override
 				public void onResponse(int correlationId, RPCResponse response) {
-
+					try {
+						Log.i(TAG, "MULTIPLE REQUESTS ON RESPONSE: CORR ID: "+ String.valueOf(correlationId)+ " RESPONSE: "+ response.serializeJSON().toString());
+					} catch (JSONException e) {
+						e.printStackTrace();
+					}
 				}
 			});
 		} catch (SdlException e) {
