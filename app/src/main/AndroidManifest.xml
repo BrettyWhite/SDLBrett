@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.brett.sdlbrett">
+          xmlns:tools="http://schemas.android.com/tools"
+          package="com.example.brett.sdlbrett">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
@@ -26,12 +27,18 @@
 
         <service
             android:name=".SdlService"
-            android:enabled="true"
-            android:exported="true" />
+            android:enabled="true" />
         <service
             android:name=".SdlRouterService"
             android:exported="true"
-            android:process="com.smartdevicelink.router" />
+            android:process="com.smartdevicelink.router">
+            <intent-filter>
+                <action android:name="com.smartdevicelink.router.service"/>
+            </intent-filter>
+            <meta-data android:name="@string/sdl_router_service_version_name"  android:value="@integer/sdl_router_service_version_value" />
+            <!-- Optional. Will default to false -->
+            <meta-data android:name="@string/sdl_router_service_is_custom_name" android:value="false" />
+        </service>
 
         <receiver
             android:name=".SdlReceiver"

@@ -18,9 +18,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //If we are connected to a module we want to start our SdlService
+        //If we are connected to a module we want to start our SdlService\
+		// THIS IS ONLY FOR MBT
         SdlReceiver.queryForConnectedService(this);
-
 
         // Start the SDLService
 //        Intent sdlServiceIntent = new Intent(this, SdlService.class);

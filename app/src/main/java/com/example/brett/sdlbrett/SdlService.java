@@ -2,10 +2,14 @@ package com.example.brett.sdlbrett;
 
 import android.app.Service;
 import android.content.Intent;
+import android.hardware.usb.UsbAccessory;
+import android.hardware.usb.UsbManager;
 import android.os.IBinder;
 import android.util.Log;
 
 import com.smartdevicelink.exception.SdlException;
+import com.smartdevicelink.proxy.RPCMessage;
+import com.smartdevicelink.proxy.RPCRequest;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
 import com.smartdevicelink.proxy.SystemCapabilityManager;
@@ -13,6 +17,7 @@ import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.interfaces.OnSystemCapabilityListener;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
+import com.smartdevicelink.proxy.rpc.AudioPassThruCapabilities;
 import com.smartdevicelink.proxy.rpc.ButtonCapabilities;
 import com.smartdevicelink.proxy.rpc.ButtonPressResponse;
 import com.smartdevicelink.proxy.rpc.Choice;
@@ -21,6 +26,7 @@ import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
 import com.smartdevicelink.proxy.rpc.GetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.GetSystemCapabilityResponse;
+import com.smartdevicelink.proxy.rpc.GetVehicleData;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.HMICapabilities;
 import com.smartdevicelink.proxy.rpc.Image;
@@ -42,10 +48,16 @@ import com.smartdevicelink.proxy.rpc.SystemCapability;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
+import com.smartdevicelink.proxy.rpc.enums.PRNDL;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
+import com.smartdevicelink.proxy.rpc.enums.TextAlignment;
+import com.smartdevicelink.proxy.rpc.listeners.OnMultipleRequestListener;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
+import com.smartdevicelink.transport.BTTransport;
+import com.smartdevicelink.transport.BTTransportConfig;
+import com.smartdevicelink.transport.BaseTransportConfig;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
@@ -109,6 +121,7 @@ import com.smartdevicelink.proxy.rpc.UpdateTurnListResponse;
 import com.smartdevicelink.proxy.rpc.enums.FileType;
 import com.smartdevicelink.proxy.rpc.enums.HMILevel;
 import com.smartdevicelink.proxy.rpc.enums.LockScreenStatus;
+import com.smartdevicelink.transport.USBTransportConfig;
 import com.smartdevicelink.util.CorrelationIdGenerator;
 
 import org.json.JSONException;
@@ -117,6 +130,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static com.smartdevicelink.proxy.constants.Names.info;
@@ -145,13 +159,16 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
     //CORE
-    private static final String CORE_IP = "m.sdl.tools";
-    private static final int CORE_PORT = 5877;
+    private static final String CORE_IP = "192.168.1.213";
+    private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
+
+	private static final String TEST_COMMAND_NAME 		= "Test Command";
+	private static final int TEST_COMMAND_ID 			= 2;
 
     // Interface style. Generic HMI currently supports
     // MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
-    private static final String INTERFACE = "DOUBLE_GRAPHIC_SOFTBUTTONS";
+    private static final String INTERFACE = "LARGE_GRAPHIC";
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -160,7 +177,7 @@ public class SdlService extends Service implements IProxyListenerALM {
     }
 
     private SdlProxyALM proxy = null;
-
+	BaseTransportConfig transport = null;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -170,8 +187,11 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //Create a new proxy using Bluetooth transport
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
-                proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
-
+                //proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
+				//transport = new BTTransportConfig();
+				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
+//				transport = new USBTransportConfig(getBaseContext(), (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY));
+				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
                 // USE TCP FOR EMULATOR (no BlueTooth)
 //                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
@@ -220,14 +240,18 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     @Override
     public void onOnHMIStatus(OnHMIStatus notification) {
-
-        switch(notification.getHmiLevel()) {
+		try {
+			Log.i(TAG, "HMI NOTIFICATION: "+notification.serializeJSON().toString());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		switch(notification.getHmiLevel()) {
             case HMI_FULL:
                 //send welcome message, addcommands, subscribe to buttons ect
 
                 // Set display layout
                 sendDisplayLayout();
-
+				getVIN();
                 break;
             case HMI_LIMITED:
                 break;
@@ -242,13 +266,27 @@ public class SdlService extends Service implements IProxyListenerALM {
                     //we must send image to core before using it.
                     putAndSetAppIcon();
                 }
-                getCapabilities();
+               // getCapabilities();
 
                 break;
             default:
                 return;
         }
     }
+
+	private void sendCommands(){
+		AddCommand command = new AddCommand();
+		MenuParams params = new MenuParams();
+		params.setMenuName(TEST_COMMAND_NAME);
+		command.setCmdID(TEST_COMMAND_ID);
+		command.setMenuParams(params);
+		command.setVrCommands(Collections.singletonList(TEST_COMMAND_NAME));
+		try {
+			proxy.sendRPCRequest(command);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
 
     public void sendDisplayLayout(){
         SetDisplayLayout setDisplayLayoutRequest = new SetDisplayLayout();
@@ -276,7 +314,10 @@ public class SdlService extends Service implements IProxyListenerALM {
         putImage(picName, FileType.GRAPHIC_JPEG, false, R.drawable.cartman);
 
         //create menu for our app
-        createMenu();
+        sendCommands();
+
+        // try multiple sending
+		sendMultipleRPCs();
     }
 
     public void createTextFields(){
@@ -322,31 +363,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     }
 
-    public void createMenu(){
-
-        Log.i(TAG,"SdlService "+"CREATE MENU CALLED");
-
-        // Create the menu parameters
-        // The parent id is 0 if adding to the root menu
-        // If adding to a submenu, the parent id is the submenu's id
-        MenuParams menuParams = new MenuParams();
-        menuParams.setParentID(0);
-        menuParams.setPosition(0);
-        menuParams.setMenuName("TESTMENU");
-
-        AddCommand addCommand = new AddCommand();
-        addCommand.setCmdID(0); // Ensure this is unique
-        addCommand.setMenuParams(menuParams);  // Set the menu parameters
-        addCommand.setCorrelationID(CorrelationIdGenerator.generateId());
-
-        try {
-            proxy.sendRPCRequest(addCommand);
-        } catch (SdlException e) {
-            e.printStackTrace();
-        }
-
-    }
-
     boolean graphicsSupported(){
         Boolean graphicsSupported = false;
         try {
@@ -360,15 +376,56 @@ public class SdlService extends Service implements IProxyListenerALM {
         return graphicsSupported;
     }
 
-    public void getCapabilities() {
+    public void sendMultipleRPCs() {
+    	List<RPCMessage> rpcs = new ArrayList<>();
 
-		proxy.getCapability(SystemCapabilityType.NAVIGATION, new OnSystemCapabilityListener(){
+    	// rpc 1
+		Show show = new Show();
+		show.setMainField1("hey yall");
+		rpcs.add(0, show);
+
+		// rpc 2
+		Show show2 = new Show();
+		show2.setMainField2("Its Weds My Dudes");
+		rpcs.add(1, show2);
+
+		// rpc 3
+		Show show3 = new Show();
+		show3.setMainField3("Hi");
+		rpcs.add(2, show3);
+
+    	try {
+			proxy.sendRequests(rpcs, new OnMultipleRequestListener() {
+				@Override
+				public void onUpdate(int remainingRequests) {
+
+				}
+
+				@Override
+				public void onFinished() {
+
+				}
+
+				@Override
+				public void onResponse(int correlationId, RPCResponse response) {
+
+				}
+			});
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
+
+    public void getCapabilities() {
+		Log.i(TAG,"GET CAPABILITIES CALLED");
+		proxy.getCapability(SystemCapabilityType.AUDIO_PASSTHROUGH, new OnSystemCapabilityListener(){
 
 			@Override
 			public void onCapabilityRetrieved(Object capability){
-				NavigationCapability navCapability = (NavigationCapability) capability;
+				Log.i(TAG,"CAPABILITIES RETRIEVED"+capability.toString());
+				AudioPassThruCapabilities navCapability = (AudioPassThruCapabilities) capability;
 				try {
-					Log.i(TAG, "Capability: "+ navCapability.serializeJSON().toString());
+					Log.i(TAG, "PCM Capability: "+ navCapability.serializeJSON().toString());
 				} catch (JSONException e) {
 					e.printStackTrace();
 				}
@@ -376,9 +433,30 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 			@Override
 			public void onError(String info){
-				//Log.i("Capabilities error", info);
+				Log.i("Capabilities error", info);
 			}
 		});
+	}
+
+	public void getVIN() {
+		GetVehicleData vdRequest = new GetVehicleData();
+		vdRequest.setVin(true);
+		vdRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
+			@Override
+			public void onResponse(int correlationId, RPCResponse response) {
+				if(response.getSuccess()){
+					String VIN = ((GetVehicleDataResponse) response).getVin();
+					Log.i("SdlService", "VIN: " + VIN);
+				}else{
+					Log.i("SdlService", "GetVehicleData was rejected.");
+				}
+			}
+		});
+		try {
+			proxy.sendRPCRequest(vdRequest);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
 	}
 
 
@@ -471,6 +549,51 @@ public class SdlService extends Service implements IProxyListenerALM {
             e.printStackTrace();
         }
     }
+
+
+	@Override
+	public void onOnCommand(OnCommand notification){
+		Integer id = notification.getCmdID();
+		if(id != null){
+			switch(id){
+				case TEST_COMMAND_ID:
+					if (proxy != null) {
+						try {
+							proxy.dispose();
+							Log.i(TAG, "PROXY DISPOSED");
+						} catch (SdlException e) {
+							e.printStackTrace();
+						} finally {
+							proxy = null;
+						}
+					}
+					break;
+			}
+		}
+	}
+
+	/**
+	 * Will show a sample test message on screen as well as speak a sample test message
+	 */
+	private void showTest(){
+		/*try {
+			proxy.show(TEST_COMMAND_NAME, "Command has been selected", TextAlignment.CENTERED, CorrelationIdGenerator.generateId());
+			proxy.speak(TEST_COMMAND_NAME, CorrelationIdGenerator.generateId());
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}*/
+
+		if (proxy != null) {
+			try {
+				proxy.dispose();
+				Log.i(TAG, "PROXY DISPOSED");
+			} catch (SdlException e) {
+				e.printStackTrace();
+			} finally {
+				proxy = null;
+			}
+		}
+	}
 
     @Override
     public void onShowResponse(ShowResponse response) {
@@ -582,11 +705,6 @@ public class SdlService extends Service implements IProxyListenerALM {
     @Override
     public void onOnVehicleData(OnVehicleData notification){
         Log.i(TAG, "onOnVehicleData notification from SDL: " + notification);
-    }
-
-    @Override
-    public void onOnCommand(OnCommand notification){
-        Log.i(TAG, "onOnCommand notification from SDL: " + notification);
     }
 
     @Override
@@ -760,9 +878,13 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     @Override
     public void onOnLanguageChange(OnLanguageChange notification) {
-        Log.i(TAG, "OnLanguageChange notification from SDL: " + notification);
+		try {
+			Log.i(TAG, "OnLanguageChange notification from SDL: " + notification.serializeJSON().toString());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 
-    }
+	}
 
     @Override
     public void onSliderResponse(SliderResponse response) {
