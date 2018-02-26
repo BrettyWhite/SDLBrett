@@ -159,8 +159,8 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
     //CORE
-    private static final String CORE_IP = "192.168.1.213";
-    private static final int CORE_PORT = 12345;
+    private static final String CORE_IP = "m.sdl.tools";
+    private static final int CORE_PORT = 5593;
     private static final String TAG = "SDL Service";
 
 	private static final String TEST_COMMAND_NAME 		= "Test Command";
@@ -189,11 +189,11 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //whether or not it is a media app and the applicationId are supplied.
                 //proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 				//transport = new BTTransportConfig();
-				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
+//				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
 //				transport = new USBTransportConfig(getBaseContext(), (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY));
-				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
+//				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
                 // USE TCP FOR EMULATOR (no BlueTooth)
-//                proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+                proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -377,33 +377,37 @@ public class SdlService extends Service implements IProxyListenerALM {
     }
 
     public void sendMultipleRPCs() {
-    	List<RPCMessage> rpcs = new ArrayList<>();
+    	List<RPCRequest> rpcs = new ArrayList<>();
 
     	// rpc 1
 		Show show = new Show();
 		show.setMainField1("hey yall");
+		show.setMainField2("");
+		show.setMainField3("");
+		show.setMainField4("");
 		rpcs.add(show);
 
 		// rpc 2
 		Show show2 = new Show();
 		show2.setMainField2("Its Weds My Dudes");
+		show2.setMainField1("");
+		show2.setMainField3("");
+		show2.setMainField4("");
 		rpcs.add(show2);
 
 		// rpc 3
 		Show show3 = new Show();
 		show3.setMainField3("Hi");
+		show3.setMainField2("");
+		show3.setMainField1("");
+		show3.setMainField4("");
 		rpcs.add(show3);
 
-		// rpc 4
-		Show show4 = new Show();
-		show4.setMainField4("Hi2");
-		rpcs.add(show4);
-
-    	try {
+		try {
 			proxy.sendRequests(rpcs, new OnMultipleRequestListener() {
 				@Override
 				public void onUpdate(int remainingRequests) {
-					Log.i(TAG, "MULTIPLE REQUESTS UPDATE: " + String.valueOf(remainingRequests));
+					Log.i(TAG, "MULTIPLE REQUESTS. NUMBER REMAINING: " + String.valueOf(remainingRequests));
 				}
 
 				@Override
@@ -606,7 +610,8 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     @Override
     public void onShowResponse(ShowResponse response) {
-        Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+        Log.i(TAG, "Show response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo() + " Corr ID: " + response.getCorrelationID());
+
 
         if (response.getSuccess()) {
             Log.i(TAG,"SdlService "+"Successfully showed.");
