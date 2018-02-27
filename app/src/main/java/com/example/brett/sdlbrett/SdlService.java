@@ -160,7 +160,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     //CORE
     private static final String CORE_IP = "m.sdl.tools";
-    private static final int CORE_PORT = 5593;
+    private static final int CORE_PORT = 5213;
     private static final String TAG = "SDL Service";
 
 	private static final String TEST_COMMAND_NAME 		= "Test Command";
@@ -403,8 +403,24 @@ public class SdlService extends Service implements IProxyListenerALM {
 		show3.setMainField4("");
 		rpcs.add(show3);
 
+		// rpc 4
+		Show show4 = new Show();
+		show4.setMainField3("Hi2");
+		show4.setMainField2("");
+		show4.setMainField1("");
+		show4.setMainField4("");
+		rpcs.add(show4);
+
+		// rpc 5
+		Show show5 = new Show();
+		show5.setMainField3("Hi3");
+		show5.setMainField2("");
+		show5.setMainField1("");
+		show5.setMainField4("");
+		rpcs.add(show5);
+
 		try {
-			proxy.sendRequests(rpcs, new OnMultipleRequestListener() {
+			proxy.sendSequentialRequests(rpcs, new OnMultipleRequestListener() {
 				@Override
 				public void onUpdate(int remainingRequests) {
 					Log.i(TAG, "MULTIPLE REQUESTS. NUMBER REMAINING: " + String.valueOf(remainingRequests));
@@ -419,6 +435,15 @@ public class SdlService extends Service implements IProxyListenerALM {
 				public void onResponse(int correlationId, RPCResponse response) {
 					try {
 						Log.i(TAG, "MULTIPLE REQUESTS ON RESPONSE: CORR ID: "+ String.valueOf(correlationId)+ " RESPONSE: "+ response.serializeJSON().toString());
+					} catch (JSONException e) {
+						e.printStackTrace();
+					}
+				}
+
+				@Override
+				public void onError(int correlationId, RPCResponse response) {
+					try {
+						Log.e(TAG, "MULTIPLE REQUESTS - ERROR. Corr ID: "+ String.valueOf(correlationId) + " response: "+ response.serializeJSON().toString());
 					} catch (JSONException e) {
 						e.printStackTrace();
 					}
