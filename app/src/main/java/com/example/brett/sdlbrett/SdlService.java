@@ -49,6 +49,7 @@ import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
 import com.smartdevicelink.proxy.rpc.enums.PRNDL;
+import com.smartdevicelink.proxy.rpc.enums.Result;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
@@ -381,7 +382,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     	// rpc 1
 		Show show = new Show();
-		show.setMainField1("hey yall");
+		show.setMainField1("hey friends");
 		show.setMainField2("");
 		show.setMainField3("");
 		show.setMainField4("");
@@ -389,64 +390,32 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 		// rpc 2
 		Show show2 = new Show();
-		show2.setMainField2("Its Weds My Dudes");
 		show2.setMainField1("");
+		show2.setMainField2("Its Weds My Dudes");
 		show2.setMainField3("");
 		show2.setMainField4("");
 		rpcs.add(show2);
-
-		// rpc 3
-		Show show3 = new Show();
-		show3.setMainField3("Hi");
-		show3.setMainField2("");
-		show3.setMainField1("");
-		show3.setMainField4("");
-		rpcs.add(show3);
-
-		// rpc 4
-		Show show4 = new Show();
-		show4.setMainField3("Hi2");
-		show4.setMainField2("");
-		show4.setMainField1("");
-		show4.setMainField4("");
-		rpcs.add(show4);
-
-		// rpc 5
-		Show show5 = new Show();
-		show5.setMainField3("Hi3");
-		show5.setMainField2("");
-		show5.setMainField1("");
-		show5.setMainField4("");
-		rpcs.add(show5);
 
 		try {
 			proxy.sendSequentialRequests(rpcs, new OnMultipleRequestListener() {
 				@Override
 				public void onUpdate(int remainingRequests) {
-					Log.i(TAG, "MULTIPLE REQUESTS. NUMBER REMAINING: " + String.valueOf(remainingRequests));
+
 				}
 
 				@Override
 				public void onFinished() {
-					Log.i(TAG, "MULTIPLE REQUESTS FINISHED");
+
 				}
 
 				@Override
 				public void onResponse(int correlationId, RPCResponse response) {
-					try {
-						Log.i(TAG, "MULTIPLE REQUESTS ON RESPONSE: CORR ID: "+ String.valueOf(correlationId)+ " RESPONSE: "+ response.serializeJSON().toString());
-					} catch (JSONException e) {
-						e.printStackTrace();
-					}
+
 				}
 
 				@Override
-				public void onError(int correlationId, RPCResponse response) {
-					try {
-						Log.e(TAG, "MULTIPLE REQUESTS - ERROR. Corr ID: "+ String.valueOf(correlationId) + " response: "+ response.serializeJSON().toString());
-					} catch (JSONException e) {
-						e.printStackTrace();
-					}
+				public void onError(int correlationId, Result resultCode, String info) {
+
 				}
 			});
 		} catch (SdlException e) {
