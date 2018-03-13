@@ -161,7 +161,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     //CORE
     private static final String CORE_IP = "m.sdl.tools";
-    private static final int CORE_PORT = 5213;
+    private static final int CORE_PORT = 5789;
     private static final String TAG = "SDL Service";
 
 	private static final String TEST_COMMAND_NAME 		= "Test Command";
@@ -189,12 +189,12 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //The listener, app name,
                 //whether or not it is a media app and the applicationId are supplied.
                 //proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
-				//transport = new BTTransportConfig();
-//				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
+//				transport = new BTTransportConfig();
+				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
 //				transport = new USBTransportConfig(getBaseContext(), (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY));
-//				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
+				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
                 // USE TCP FOR EMULATOR (no BlueTooth)
-                proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+                //proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -397,25 +397,25 @@ public class SdlService extends Service implements IProxyListenerALM {
 		rpcs.add(show2);
 
 		try {
-			proxy.sendSequentialRequests(rpcs, new OnMultipleRequestListener() {
+			proxy.sendRequests(rpcs, new OnMultipleRequestListener() {
 				@Override
 				public void onUpdate(int remainingRequests) {
-
+					Log.i(TAG, "MULTIPLE ON UPDATE: " + String.valueOf(remainingRequests));
 				}
 
 				@Override
 				public void onFinished() {
-
+					Log.i(TAG, "MULTIPLE ON FINISHED");
 				}
 
 				@Override
 				public void onResponse(int correlationId, RPCResponse response) {
-
+					Log.i(TAG, "MULTIPLE ON RESPONSE: " + String.valueOf(correlationId));
 				}
 
 				@Override
 				public void onError(int correlationId, Result resultCode, String info) {
-
+					Log.e(TAG, "MULTIPLE ON ERROR: " + String.valueOf(correlationId));
 				}
 			});
 		} catch (SdlException e) {

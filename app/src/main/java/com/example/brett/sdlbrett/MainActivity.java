@@ -20,11 +20,11 @@ public class MainActivity extends AppCompatActivity {
 
         //If we are connected to a module we want to start our SdlService\
 		// THIS IS ONLY FOR MBT
-//        SdlReceiver.queryForConnectedService(this);
+        SdlReceiver.queryForConnectedService(this);
 
         // Start the SDLService
-        Intent sdlServiceIntent = new Intent(this, SdlService.class);
-        startService(sdlServiceIntent);
+//        Intent sdlServiceIntent = new Intent(this, SdlService.class);
+//        startService(sdlServiceIntent);
 
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
