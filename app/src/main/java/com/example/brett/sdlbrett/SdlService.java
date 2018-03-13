@@ -317,6 +317,9 @@ public class SdlService extends Service implements IProxyListenerALM {
         //create menu for our app
         sendCommands();
 
+        // capabilities
+		getCapabilities();
+
         // try multiple sending
 		sendMultipleRPCs();
     }
@@ -425,7 +428,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     public void getCapabilities() {
 		Log.i(TAG,"GET CAPABILITIES CALLED");
-		proxy.getCapability(SystemCapabilityType.AUDIO_PASSTHROUGH, new OnSystemCapabilityListener(){
+		proxy.getCapability(SystemCapabilityType.PCM_STREAMING, new OnSystemCapabilityListener(){
 
 			@Override
 			public void onCapabilityRetrieved(Object capability){
