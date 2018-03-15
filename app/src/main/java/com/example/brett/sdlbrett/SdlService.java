@@ -318,10 +318,12 @@ public class SdlService extends Service implements IProxyListenerALM {
         sendCommands();
 
         // capabilities
-		getCapabilities();
+		//getCapabilities();
 
         // try multiple sending
-		sendMultipleRPCs();
+		//sendMultipleRPCs();
+
+		addSubMenu();
     }
 
     public void createTextFields(){
@@ -339,6 +341,31 @@ public class SdlService extends Service implements IProxyListenerALM {
             e.printStackTrace();
         }
     }
+
+    public void addSubMenu() {
+		int unique_id = 313;
+
+		AddSubMenu addSubMenu = new AddSubMenu();
+		addSubMenu.setPosition(0);
+		addSubMenu.setMenuID(unique_id);
+		addSubMenu.setMenuName("SubMenu");
+		addSubMenu.setOnRPCResponseListener(new OnRPCResponseListener() {
+			@Override
+			public void onResponse(int correlationId, RPCResponse response) {
+				if(((AddSubMenuResponse) response).getSuccess()){
+					// The submenu was created successfully, start adding the submenu items
+					// Use unique_id
+				}else{
+					Log.i("SdlService", "AddSubMenu request rejected.");
+				}
+			}
+		});
+		try {
+			proxy.sendRPCRequest(addSubMenu);
+		} catch (SdlException e) {
+			e.printStackTrace();
+		}
+	}
 
 
     public void createButtons(){
