@@ -568,14 +568,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 			switch(id){
 				case TEST_COMMAND_ID:
 					if (proxy != null) {
-						try {
-							proxy.dispose();
-							Log.i(TAG, "PROXY DISPOSED");
-						} catch (SdlException e) {
-							e.printStackTrace();
-						} finally {
-							proxy = null;
-						}
+						showTest();
 					}
 					break;
 			}
@@ -586,12 +579,12 @@ public class SdlService extends Service implements IProxyListenerALM {
 	 * Will show a sample test message on screen as well as speak a sample test message
 	 */
 	private void showTest(){
-		/*try {
+		try {
 			proxy.show(TEST_COMMAND_NAME, "Command has been selected", TextAlignment.CENTERED, CorrelationIdGenerator.generateId());
 			proxy.speak(TEST_COMMAND_NAME, CorrelationIdGenerator.generateId());
 		} catch (SdlException e) {
 			e.printStackTrace();
-		}*/
+		}
 
 		if (proxy != null) {
 			try {
