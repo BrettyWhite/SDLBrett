@@ -2,6 +2,7 @@ package com.example.brett.sdlbrett;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.util.Log;
 
 import com.smartdevicelink.transport.SdlBroadcastReceiver;
@@ -16,8 +17,8 @@ public class SdlReceiver extends SdlBroadcastReceiver {
 
         Log.d(TAG, "SDL Enabled");
         intent.setClass(context, SdlService.class);
-        context.startService(intent);
-    }
+		context.startService(intent);
+	}
 
     @Override
     public Class<? extends SdlRouterService> defineLocalSdlRouterClass() {

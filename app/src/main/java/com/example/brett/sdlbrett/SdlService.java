@@ -1,5 +1,6 @@
 package com.example.brett.sdlbrett;
 
+import android.app.Notification;
 import android.app.Service;
 import android.content.Intent;
 import android.hardware.usb.UsbAccessory;
@@ -52,6 +53,7 @@ import com.smartdevicelink.proxy.rpc.enums.PRNDL;
 import com.smartdevicelink.proxy.rpc.enums.Result;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
 import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
+import com.smartdevicelink.proxy.rpc.enums.SpeechCapabilities;
 import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
 import com.smartdevicelink.proxy.rpc.enums.TextAlignment;
 import com.smartdevicelink.proxy.rpc.listeners.OnMultipleRequestListener;
@@ -160,8 +162,8 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
     //CORE
-    private static final String CORE_IP = "m.sdl.tools";
-    private static final int CORE_PORT = 5789;
+    private static final String CORE_IP = "192.168.1.213";
+    private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
 
 	private static final String TEST_COMMAND_NAME 		= "Test Command";
@@ -182,7 +184,12 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        boolean forceConnect = intent !=null && intent.getBooleanExtra(TransportConstants.FORCE_TRANSPORT_CONNECTED, false);
+		try {
+			startForeground(849 ,(Notification) intent.getParcelableExtra("notification") );
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		boolean forceConnect = intent !=null && intent.getBooleanExtra(TransportConstants.FORCE_TRANSPORT_CONNECTED, false);
         if (proxy == null) {
             try {
                 //Create a new proxy using Bluetooth transport
@@ -190,11 +197,11 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //whether or not it is a media app and the applicationId are supplied.
                 //proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 //				transport = new BTTransportConfig();
-				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
+//				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
 //				transport = new USBTransportConfig(getBaseContext(), (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY));
-				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
+//				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
                 // USE TCP FOR EMULATOR (no BlueTooth)
-                //proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+                proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -267,7 +274,7 @@ public class SdlService extends Service implements IProxyListenerALM {
                     //we must send image to core before using it.
                     putAndSetAppIcon();
                 }
-               // getCapabilities();
+                getCapabilities();
 
                 break;
             default:
@@ -318,7 +325,7 @@ public class SdlService extends Service implements IProxyListenerALM {
         sendCommands();
 
         // capabilities
-		//getCapabilities();
+		getCapabilities();
 
         // try multiple sending
 		//sendMultipleRPCs();
@@ -454,15 +461,16 @@ public class SdlService extends Service implements IProxyListenerALM {
 	}
 
     public void getCapabilities() {
-		Log.i(TAG,"GET CAPABILITIES CALLED");
+		Log.i(TAG,"GET Capability CALLED");
+
 		proxy.getCapability(SystemCapabilityType.PCM_STREAMING, new OnSystemCapabilityListener(){
 
 			@Override
 			public void onCapabilityRetrieved(Object capability){
-				Log.i(TAG,"CAPABILITIES RETRIEVED"+capability.toString());
-				AudioPassThruCapabilities navCapability = (AudioPassThruCapabilities) capability;
+				 AudioPassThruCapabilities pcm = (AudioPassThruCapabilities) capability;
+
 				try {
-					Log.i(TAG, "PCM Capability: "+ navCapability.serializeJSON().toString());
+					Log.i(TAG, "Capability: "+ pcm.serializeJSON().toString());
 				} catch (JSONException e) {
 					e.printStackTrace();
 				}
@@ -470,7 +478,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 			@Override
 			public void onError(String info){
-				Log.i("Capabilities error", info);
+				Log.i(TAG, "Capability could not be retrieved: "+ info);
 			}
 		});
 	}
@@ -611,17 +619,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 			proxy.speak(TEST_COMMAND_NAME, CorrelationIdGenerator.generateId());
 		} catch (SdlException e) {
 			e.printStackTrace();
-		}
-
-		if (proxy != null) {
-			try {
-				proxy.dispose();
-				Log.i(TAG, "PROXY DISPOSED");
-			} catch (SdlException e) {
-				e.printStackTrace();
-			} finally {
-				proxy = null;
-			}
 		}
 	}
 
