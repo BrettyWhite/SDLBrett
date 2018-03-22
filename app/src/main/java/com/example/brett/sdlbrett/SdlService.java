@@ -8,6 +8,7 @@ import android.util.Log;
 import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
+import com.smartdevicelink.proxy.SdlProxyBuilder;
 import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
@@ -44,6 +45,7 @@ import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.SystemCapability;
 import com.smartdevicelink.proxy.rpc.Temperature;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
+import com.smartdevicelink.proxy.rpc.enums.AppHMIType;
 import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ButtonPressMode;
 import com.smartdevicelink.proxy.rpc.enums.DefrostZone;
@@ -57,6 +59,7 @@ import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
 import com.smartdevicelink.proxy.rpc.enums.TemperatureUnit;
 import com.smartdevicelink.proxy.rpc.enums.VentilationMode;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
+import com.smartdevicelink.transport.BaseTransportConfig;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
@@ -129,6 +132,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 import static com.smartdevicelink.proxy.rpc.SystemCapability.KEY_REMOTE_CONTROL_CAPABILITY;
 import static java.lang.Boolean.FALSE;
@@ -196,11 +200,18 @@ public class SdlService extends Service implements IProxyListenerALM {
 				//Create a new proxy using Bluetooth transport
 				//The listener, app name,
 				//whether or not it is a media app and the applicationId are supplied.
-				proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
+//				proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 
 				// USE TCP FOR EMULATOR (no BlueTooth)
-//				proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
-
+				//proxy = new SdlProxyALM(this,APP_NAME, true, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+				BaseTransportConfig transport = new TCPTransportConfig(12345, "192.168.1.213", false);
+				Log.d(TAG, "Transport type: " + transport.getTransportType());
+				Vector<AppHMIType> appType = new Vector<AppHMIType>();
+				appType.add(AppHMIType.REMOTE_CONTROL);
+				SdlProxyBuilder.Builder builder = new SdlProxyBuilder.Builder(this, APP_ID, APP_NAME, true,  this);
+				builder.setTransportType(transport);
+				builder.setVrAppHMITypes(appType);
+				proxy = builder.build();
 			} catch (SdlException e) {
 				//There was an error creating the proxy
 				if (proxy == null) {
@@ -254,6 +265,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 				// Set display layout
 				sendDisplayLayout();
 				//getInteriorVehicleData();
+				setInteriorVehicleData();
 
 
 				break;
@@ -271,7 +283,6 @@ public class SdlService extends Service implements IProxyListenerALM {
 					putAndSetAppIcon();
 
 				}
-				setInteriorVehicleData();
 				break;
 			default:
 				return;
@@ -298,7 +309,7 @@ public class SdlService extends Service implements IProxyListenerALM {
 		createTextFields();
 
 		// create buttons
-		createButtons();
+		//createButtons();
 
 		// put and set image
 		String picName = "cartman.jpg";
@@ -511,13 +522,13 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 	@Override
 	public void onGetSystemCapabilityResponse(GetSystemCapabilityResponse response) {
-		/*try {
+		try {
 			Log.i(TAG, "REMOTE CONTROL GetSystemCapabilityResponse from SDL: " + response.getResultCode().name() +
 					" Info: " + response.getSystemCapability().getSystemCapabilityType() +
 					" OTHER STUFF: " + response.getSystemCapability().serializeJSON());
 		} catch (JSONException e) {
 			e.printStackTrace();
-		}*/
+		}
 
 	}
 
@@ -537,14 +548,11 @@ public class SdlService extends Service implements IProxyListenerALM {
 	public void setInteriorVehicleData() {
 		Log.i("REMOTE CONTROL","set being called");
 
-		ButtonPress bp = new ButtonPress();
-		bp.setModuleType(ModuleType.RADIO);
-		bp.setButtonName(ButtonName.SEARCH);
-		bp.setButtonPressMode(ButtonPressMode.SHORT);
+		SubscribeButton subscribeButtonRequest = new SubscribeButton();
+		subscribeButtonRequest.setButtonName(ButtonName.CUSTOM_BUTTON);
 
 		try {
-			proxy.sendRPCRequest(bp);
-			Log.i("REMOTE CONTROL","sent RPC if you see this");
+			proxy.sendRPCRequest(subscribeButtonRequest);
 		} catch (SdlException e) {
 			e.printStackTrace();
 		}
@@ -740,7 +748,11 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 	@Override
 	public void onSubscribeButtonResponse(SubscribeButtonResponse response) {
-		Log.i(TAG, "SubscribeButton response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo());
+		try {
+			Log.i(TAG, "SubscribeButton response from SDL: " + response.getResultCode().name() + " Info: " + response.getInfo() + "CRAP: " + response.serializeJSON().toString());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
