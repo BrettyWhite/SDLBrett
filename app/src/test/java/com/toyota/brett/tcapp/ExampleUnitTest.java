@@ -1,4 +1,4 @@
-package com.example.brett.sdlbrett;
+package com.toyota.brett.tcapp;
 
 import org.junit.Test;
 

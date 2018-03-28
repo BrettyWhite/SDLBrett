@@ -1,14 +1,13 @@
-package com.example.brett.sdlbrett;
+package com.toyota.tcapp;
 
-import android.content.Intent;
 import android.os.Bundle;
 
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+
+import com.toyota.brett.tcapp.R;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -20,11 +19,11 @@ public class MainActivity extends AppCompatActivity {
 
         //If we are connected to a module we want to start our SdlService\
 		// THIS IS ONLY FOR MBT
-//        SdlReceiver.queryForConnectedService(this);
+        SdlReceiver.queryForConnectedService(this);
 
         // Start the SDLService
-        Intent sdlServiceIntent = new Intent(this, SdlService.class);
-        startService(sdlServiceIntent);
+    //    Intent sdlServiceIntent = new Intent(this, SdlService.class);
+      //  startService(sdlServiceIntent);
 
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);

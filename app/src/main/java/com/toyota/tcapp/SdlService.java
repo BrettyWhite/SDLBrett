@@ -1,15 +1,15 @@
-package com.example.brett.sdlbrett;
+package com.toyota.tcapp;
 
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.Service;
 import android.content.Intent;
-import android.hardware.usb.UsbAccessory;
-import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.toyota.brett.tcapp.R;
 import com.smartdevicelink.exception.SdlException;
-import com.smartdevicelink.proxy.RPCMessage;
 import com.smartdevicelink.proxy.RPCRequest;
 import com.smartdevicelink.proxy.RPCResponse;
 import com.smartdevicelink.proxy.SdlProxyALM;
@@ -18,22 +18,14 @@ import com.smartdevicelink.proxy.interfaces.IProxyListenerALM;
 import com.smartdevicelink.proxy.interfaces.OnSystemCapabilityListener;
 import com.smartdevicelink.proxy.rpc.AddCommand;
 import com.smartdevicelink.proxy.rpc.AddSubMenu;
-import com.smartdevicelink.proxy.rpc.AudioPassThruCapabilities;
-import com.smartdevicelink.proxy.rpc.ButtonCapabilities;
 import com.smartdevicelink.proxy.rpc.ButtonPressResponse;
-import com.smartdevicelink.proxy.rpc.Choice;
-import com.smartdevicelink.proxy.rpc.CreateInteractionChoiceSet;
-import com.smartdevicelink.proxy.rpc.DeleteFile;
 import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
 import com.smartdevicelink.proxy.rpc.GetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.GetSystemCapabilityResponse;
 import com.smartdevicelink.proxy.rpc.GetVehicleData;
 import com.smartdevicelink.proxy.rpc.GetWayPointsResponse;
-import com.smartdevicelink.proxy.rpc.HMICapabilities;
 import com.smartdevicelink.proxy.rpc.Image;
-import com.smartdevicelink.proxy.rpc.ListFiles;
 import com.smartdevicelink.proxy.rpc.MenuParams;
-import com.smartdevicelink.proxy.rpc.NavigationCapability;
 import com.smartdevicelink.proxy.rpc.OnHMIStatus;
 import com.smartdevicelink.proxy.rpc.OnInteriorVehicleData;
 import com.smartdevicelink.proxy.rpc.OnWayPointChange;
@@ -41,28 +33,20 @@ import com.smartdevicelink.proxy.rpc.SendHapticDataResponse;
 import com.smartdevicelink.proxy.rpc.SetDisplayLayout;
 import com.smartdevicelink.proxy.rpc.SetInteriorVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.Show;
-import com.smartdevicelink.proxy.rpc.SoftButton;
-import com.smartdevicelink.proxy.rpc.SoftButtonCapabilities;
 import com.smartdevicelink.proxy.rpc.SubscribeButton;
 import com.smartdevicelink.proxy.rpc.SubscribeWayPointsResponse;
-import com.smartdevicelink.proxy.rpc.SystemCapability;
 import com.smartdevicelink.proxy.rpc.UnsubscribeWayPointsResponse;
 import com.smartdevicelink.proxy.rpc.enums.ButtonName;
 import com.smartdevicelink.proxy.rpc.enums.ImageType;
-import com.smartdevicelink.proxy.rpc.enums.PRNDL;
 import com.smartdevicelink.proxy.rpc.enums.Result;
 import com.smartdevicelink.proxy.rpc.enums.SdlDisconnectedReason;
-import com.smartdevicelink.proxy.rpc.enums.SoftButtonType;
 import com.smartdevicelink.proxy.rpc.enums.SpeechCapabilities;
 import com.smartdevicelink.proxy.rpc.enums.SystemCapabilityType;
 import com.smartdevicelink.proxy.rpc.enums.TextAlignment;
 import com.smartdevicelink.proxy.rpc.listeners.OnMultipleRequestListener;
 import com.smartdevicelink.proxy.rpc.listeners.OnRPCResponseListener;
-import com.smartdevicelink.transport.BTTransport;
-import com.smartdevicelink.transport.BTTransportConfig;
 import com.smartdevicelink.transport.BaseTransportConfig;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
-import com.smartdevicelink.transport.TCPTransportConfig;
 import com.smartdevicelink.transport.TransportConstants;
 import com.smartdevicelink.proxy.callbacks.OnServiceEnded;
 import com.smartdevicelink.proxy.callbacks.OnServiceNACKed;
@@ -124,7 +108,6 @@ import com.smartdevicelink.proxy.rpc.UpdateTurnListResponse;
 import com.smartdevicelink.proxy.rpc.enums.FileType;
 import com.smartdevicelink.proxy.rpc.enums.HMILevel;
 import com.smartdevicelink.proxy.rpc.enums.LockScreenStatus;
-import com.smartdevicelink.transport.USBTransportConfig;
 import com.smartdevicelink.util.CorrelationIdGenerator;
 
 import org.json.JSONException;
@@ -135,8 +118,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import static com.smartdevicelink.proxy.constants.Names.info;
 
 /**
  *
@@ -173,6 +154,8 @@ public class SdlService extends Service implements IProxyListenerALM {
     // MEDIA, NON-MEDIA, LARGE-GRAPHIC-ONLY
     private static final String INTERFACE = "LARGE_GRAPHIC";
 
+	private static final int FOREGROUND_SERVICE_ID = 849;
+
     @Override
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.
@@ -181,6 +164,28 @@ public class SdlService extends Service implements IProxyListenerALM {
 
     private SdlProxyALM proxy = null;
 	BaseTransportConfig transport = null;
+
+	@Override
+	public void onCreate() {
+		Log.d(TAG, "onCreate");
+		super.onCreate();
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			enterForeground();
+		}
+	}
+
+	@SuppressLint("NewApi")
+	public void enterForeground() {
+		Notification notification = new Notification.Builder(this)
+				.setContentTitle("SmartDeviceLink")
+				.setContentText(getString(R.string.app_name))
+				.setSmallIcon(R.drawable.ic_sdl)
+				.setTicker("SmartDeviceLink")
+				.setPriority(Notification.PRIORITY_DEFAULT)
+				.build();
+		startForeground(FOREGROUND_SERVICE_ID, notification);
+	}
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -197,11 +202,11 @@ public class SdlService extends Service implements IProxyListenerALM {
                 //whether or not it is a media app and the applicationId are supplied.
                 //proxy = new SdlProxyALM(this, APP_NAME, false, APP_ID,new MultiplexTransportConfig(getBaseContext(), APP_ID));
 //				transport = new BTTransportConfig();
-//				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
+				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
 //				transport = new USBTransportConfig(getBaseContext(), (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY));
-//				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
+				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
                 // USE TCP FOR EMULATOR (no BlueTooth)
-                proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+              //  proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -463,17 +468,14 @@ public class SdlService extends Service implements IProxyListenerALM {
     public void getCapabilities() {
 		Log.i(TAG,"GET Capability CALLED");
 
-		proxy.getCapability(SystemCapabilityType.PCM_STREAMING, new OnSystemCapabilityListener(){
+		proxy.getCapability(SystemCapabilityType.SPEECH);
+
+		proxy.getCapability(SystemCapabilityType.SPEECH, new OnSystemCapabilityListener(){
 
 			@Override
 			public void onCapabilityRetrieved(Object capability){
-				 AudioPassThruCapabilities pcm = (AudioPassThruCapabilities) capability;
-
-				try {
-					Log.i(TAG, "Capability: "+ pcm.serializeJSON().toString());
-				} catch (JSONException e) {
-					e.printStackTrace();
-				}
+				List<SpeechCapabilities> speechCapabilityList = SystemCapabilityManager.convertToList(capability, SpeechCapabilities.class);
+				Log.i(TAG, "RAIR "+ speechCapabilityList.toString());
 			}
 
 			@Override

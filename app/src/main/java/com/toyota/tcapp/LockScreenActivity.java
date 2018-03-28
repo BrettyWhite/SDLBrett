@@ -1,4 +1,4 @@
-package com.example.brett.sdlbrett;
+package com.toyota.tcapp;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -6,8 +6,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.Window;
-import android.view.WindowManager;
+
+import com.toyota.brett.tcapp.R;
 
 public class LockScreenActivity extends AppCompatActivity {
 

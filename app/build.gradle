@@ -1,15 +1,24 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'ANDROIDSIGNKEY'
+            keyPassword 'testy1'
+            storeFile file('/Users/brett/Documents/ANDROIDSIGNKEY')
+            storePassword 'testy1'
+        }
+    }
     compileSdkVersion 26
     buildToolsVersion "26.0"
     defaultConfig {
-        applicationId "com.example.brett.sdlbrett"
+        applicationId "com.toyota.tcapp"
         minSdkVersion 20
         targetSdkVersion 26
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        signingConfig signingConfigs.config
     }
     buildTypes {
         release {
@@ -17,10 +26,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    productFlavors {
+    }
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })

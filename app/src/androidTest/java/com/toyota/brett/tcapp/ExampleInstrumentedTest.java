@@ -1,4 +1,4 @@
-package com.example.brett.sdlbrett;
+package com.toyota.brett.tcapp;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
