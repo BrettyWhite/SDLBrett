@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.smartdevicelink.transport.TCPTransportConfig;
 import com.toyota.brett.tcapp.R;
 import com.smartdevicelink.exception.SdlException;
 import com.smartdevicelink.proxy.RPCRequest;
@@ -143,7 +144,7 @@ public class SdlService extends Service implements IProxyListenerALM {
     private static final Integer APP_ICON_RESOURCE = R.drawable.sdlicon;
 
     //CORE
-    private static final String CORE_IP = "192.168.1.213";
+    private static final String CORE_IP = "192.168.1.167";
     private static final int CORE_PORT = 12345;
     private static final String TAG = "SDL Service";
 
@@ -204,9 +205,9 @@ public class SdlService extends Service implements IProxyListenerALM {
 //				transport = new BTTransportConfig();
 				transport = new MultiplexTransportConfig(getBaseContext(), APP_ID);
 //				transport = new USBTransportConfig(getBaseContext(), (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY));
-				proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
+				//proxy = new SdlProxyALM(this, APP_NAME, true, APP_ID, transport);
                 // USE TCP FOR EMULATOR (no BlueTooth)
-              //  proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
+                proxy = new SdlProxyALM(this,APP_NAME, false, APP_ID ,new TCPTransportConfig(CORE_PORT, CORE_IP, false));
 
             } catch (SdlException e) {
                 //There was an error creating the proxy
@@ -508,11 +509,13 @@ public class SdlService extends Service implements IProxyListenerALM {
 
 
     public void putAndSetAppIcon(){
+		byte[] file = contentsOfResource(APP_ICON_RESOURCE);
         PutFile putFileRequest = new PutFile();
         putFileRequest.setSdlFileName(APP_ICON);
         putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
         putFileRequest.setPersistentFile(true);
-        putFileRequest.setFileData(contentsOfResource(APP_ICON_RESOURCE)); // can create file_data using helper method below
+        putFileRequest.setFileData(file); // can create file_data using helper method below
+		putFileRequest.setCRC(file);
         putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
         putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
 
@@ -539,11 +542,12 @@ public class SdlService extends Service implements IProxyListenerALM {
     }
 
     public void putImage(final String fileName, final FileType fileType, final boolean persistent, final Integer id){
+		final byte[] data = contentsOfResource(id);
         PutFile putFileRequest = new PutFile();
         putFileRequest.setSdlFileName(fileName);
         putFileRequest.setFileType(FileType.GRAPHIC_JPEG);
         putFileRequest.setPersistentFile(true);
-        final byte[] data = contentsOfResource(id);
+        putFileRequest.setCRC(data);
         putFileRequest.setFileData(data); // can create file_data using helper method below
         putFileRequest.setCorrelationID(CorrelationIdGenerator.generateId());
         putFileRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
